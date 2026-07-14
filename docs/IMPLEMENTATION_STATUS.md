@@ -4,9 +4,9 @@ Last updated: 2026-07-14
 
 ## Current stage
 
-**Empty O3DE launcher build — in progress**
+**Asset-processing baseline — in progress**
 
-The recovered specification and T0–T8 acceptance contracts are present and valid. Runtime implementation has not yet begun. Work is proceeding sequentially toward the T0 exit gate.
+The recovered specification and T0–T8 acceptance contracts are present and valid. The empty O3DE client and server launchers now build. Runtime integration has not yet begun; the next foundation checkpoint is a processed-asset startup before Project Chrono is linked.
 
 ## Stage ledger
 
@@ -17,7 +17,8 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | O3DE 26.05.0 source checkout | Complete | Clean checkout at `3db6943249d8bd7960b9ed7e9aee310b7668586e` |
 | Project Chrono 10.0.0 source checkout | Complete | Clean sparse checkout at `9faf13dd8f1128dd75ed233a9627027b0422c3f7` |
 | O3DE project configuration | Complete | Visual Studio 2022 generator at `build/windows`; generated files ignored |
-| Empty O3DE client/server build | In progress | Configuration passed; compilation pending |
+| Empty O3DE client/server build | Complete | Profile `LDGM.GameLauncher.exe` and `LDGM.ServerLauncher.exe` linked successfully |
+| Empty-project asset processing | In progress | Startup reaches O3DE, then reports the expected missing shader, font and `defaultlevel` products |
 | Project Chrono build | Not started | Pending minimal Core/Vehicle configuration |
 | O3DE project and Gem scaffolding | Complete | Minimal project Gem plus Windows-only `LDMChronoVehicle` Gem |
 | T0 integration implementation | Not started | Pending |
@@ -43,11 +44,15 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 - Generated the O3DE MinimalProject scaffold and the dedicated `LDMChronoVehicle` code Gem using O3DE's own templates.
 - Restricted the project and custom Gems to O3DE 2.6.0 compatibility and replaced all generated placeholder metadata.
 - Configured the project successfully with CMake 4.2.3, Visual Studio 2022, MSVC 19.44.35228 and Windows SDK 10.0.26100.0.
+- Built the Profile GameLauncher and ServerLauncher targets successfully.
+- Diagnosed MSVC `CL.exe` access violations (`0xC0000005`) during large O3DE unity builds at unrestricted, eight-job and four-job parallelism; each affected target passed when rebuilt serially.
+- Set the checked-in Windows build default to one MSBuild job until a separately verified compiler/toolset change permits safe parallelism.
+- Probed both launchers: the GameLauncher remained running for the full 15-second bounded smoke interval, while the ServerLauncher exited cleanly after reporting unprocessed shader/font assets and the absent template level.
 
 ## Next checkpoint
 
-1. Build the empty GameLauncher and ServerLauncher targets before linking Chrono.
-2. Run both launchers as smoke tests and capture any missing-asset behavior.
+1. Build the asset tools and process the empty project's source assets.
+2. Repeat bounded GameLauncher and ServerLauncher startup probes against the processed asset catalog.
 3. Configure a static Project Chrono Core/Vehicle build with the matching MSVC runtime.
 4. Link a minimal Chrono smoke component through `LDMChronoVehicle` only.
 

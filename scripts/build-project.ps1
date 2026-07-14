@@ -3,7 +3,9 @@ param(
     [ValidateSet("debug", "profile", "release")]
     [string]$Configuration = "profile",
     [string[]]$Targets = @("LDGM.GameLauncher", "LDGM.ServerLauncher"),
-    [string]$BuildDirectory = "build/windows"
+    [string]$BuildDirectory = "build/windows",
+    [ValidateRange(1, 32)]
+    [int]$MaxParallelJobs = 1
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,7 +17,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $resolvedBuildDirectory "CMakeCache.
     throw "The project is not configured. Run scripts/configure-project.ps1 first."
 }
 
-& $environment.CMake --build $resolvedBuildDirectory --config $Configuration --target @Targets -- /m
+& $environment.CMake --build $resolvedBuildDirectory --config $Configuration --target @Targets -- "/m:$MaxParallelJobs"
 if ($LASTEXITCODE -ne 0) {
     throw "O3DE project build failed with exit code $LASTEXITCODE."
 }
