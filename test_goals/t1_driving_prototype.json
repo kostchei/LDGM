@@ -1,0 +1,217 @@
+{
+  "schema_version": "1.0",
+  "source_specification": "legally_distinct_gorka_morka_prd_eng_spec_v0_4.md",
+  "tranche_id": "T1",
+  "title": "First-Person Driving Prototype",
+  "phase": "prototype",
+  "mvp": true,
+  "purpose": "Deliver the basic driving experience with the starter technical, the required surfaces and usable cockpit controls.",
+  "dependencies": [
+    "T0"
+  ],
+  "entry_criteria": [
+    "T0 exit gate has passed."
+  ],
+  "non_goals": [
+    "Weapons and combat.",
+    "Damage feedback beyond developer controls.",
+    "Mission flow and persistence.",
+    "External player driving camera."
+  ],
+  "test_environment": {
+    "build_configuration": [
+      "profile or release-like build",
+      "debug symbols retained for test captures"
+    ],
+    "topology": [
+      "single client plus authoritative host"
+    ],
+    "required_assets": [
+      "tranche-specific test map and fixtures",
+      "versioned data definitions"
+    ],
+    "network_profiles": [],
+    "notes": [
+      "No player-accessible third-person driving camera.",
+      "No internal vehicle-mechanics simulation.",
+      "No active gameplay instance may exceed 30 vehicles."
+    ]
+  },
+  "goals": [
+    {
+      "id": "T1-DRIVE-001",
+      "category": "physics",
+      "priority": "blocker",
+      "statement": "The starter technical drives predictably on all required MVP surface classes.",
+      "method": "instrumented",
+      "procedure": [
+        "Run the same acceleration, braking and constant-steer sequence on hard road, broken road, gravel, firm sand and deep sand.",
+        "Capture speed, slip, stopping distance and stability telemetry.",
+        "Store golden ranges."
+      ],
+      "assertions": [
+        {
+          "metric": "required_surface_profiles_tested",
+          "operator": "==",
+          "target": 5
+        },
+        {
+          "metric": "physics_run_has_nan",
+          "operator": "==",
+          "target": false
+        },
+        {
+          "metric": "surface_results_are_distinguishable",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "physics telemetry",
+        "golden-range file",
+        "test-range video"
+      ]
+    },
+    {
+      "id": "T1-INPUT-002",
+      "category": "input",
+      "priority": "critical",
+      "statement": "Keyboard and gamepad controls support the complete basic driving action set and use a shared input abstraction.",
+      "method": "mixed",
+      "procedure": [
+        "Bind throttle, brake, steering, handbrake, gear actions, engine start and head-look.",
+        "Drive one complete test lap with keyboard.",
+        "Repeat with gamepad.",
+        "Inspect normalized input trace."
+      ],
+      "assertions": [
+        {
+          "metric": "required_driving_actions_bound",
+          "operator": "all_pass",
+          "target": [
+            "throttle",
+            "brake",
+            "steering",
+            "handbrake",
+            "gear_up",
+            "gear_down",
+            "engine_start",
+            "head_look"
+          ]
+        },
+        {
+          "metric": "keyboard_lap_complete",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "gamepad_lap_complete",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "binding export",
+        "input traces",
+        "lap videos"
+      ]
+    },
+    {
+      "id": "T1-CAM-003",
+      "category": "camera",
+      "priority": "critical",
+      "statement": "The first-person camera supports head-look and Perception modes without changing projectile or vehicle physics.",
+      "method": "mixed",
+      "procedure": [
+        "Switch between wide and far modes while stationary and driving.",
+        "Exercise head-look to its configured limits.",
+        "Compare vehicle and aim simulation values before and after FOV changes."
+      ],
+      "assertions": [
+        {
+          "metric": "head_look_left_limit_deg",
+          "operator": "in_range",
+          "target": [
+            -35,
+            -25
+          ],
+          "unit": "degrees"
+        },
+        {
+          "metric": "head_look_right_limit_deg",
+          "operator": "in_range",
+          "target": [
+            25,
+            35
+          ],
+          "unit": "degrees"
+        },
+        {
+          "metric": "fov_changes_physics_state",
+          "operator": "==",
+          "target": false
+        },
+        {
+          "metric": "external_driving_camera_available",
+          "operator": "==",
+          "target": false
+        }
+      ],
+      "evidence": [
+        "camera settings capture",
+        "simulation comparison trace",
+        "test video"
+      ]
+    },
+    {
+      "id": "T1-REG-004",
+      "category": "physics",
+      "priority": "critical",
+      "statement": "Core driving metrics are repeatable enough for regression testing.",
+      "method": "instrumented",
+      "procedure": [
+        "Run acceleration, braking, turn-radius, rollover and collision-recovery tests at least five times.",
+        "Calculate spread for each metric.",
+        "Record provisional tolerances for the test machine."
+      ],
+      "assertions": [
+        {
+          "metric": "runs_per_test",
+          "operator": ">=",
+          "target": 5
+        },
+        {
+          "metric": "all_core_metrics_have_tolerances",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "unexplained_outlier_runs",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "regression baseline JSON",
+        "summary report",
+        "raw telemetry"
+      ]
+    }
+  ],
+  "exit_gate": {
+    "rule": "all_blocker_and_critical_pass",
+    "required_priorities": [
+      "blocker",
+      "critical"
+    ],
+    "required_evidence": [
+      "machine-readable test result",
+      "logs or telemetry",
+      "artifact or build identifier"
+    ],
+    "decision_owner": "project technical owner",
+    "notes": [
+      "The starter technical is controllable, stable and measurably distinct across the required terrain surfaces, with repeatable physics telemetry inside agreed tolerances."
+    ]
+  }
+}

@@ -1,0 +1,203 @@
+{
+  "schema_version": "1.0",
+  "source_specification": "legally_distinct_gorka_morka_prd_eng_spec_v0_4.md",
+  "tranche_id": "T0",
+  "title": "Engine and Vehicle Integration Spike",
+  "phase": "foundation",
+  "mvp": true,
+  "purpose": "Prove that the pinned O3DE and Project Chrono versions can build, run and exchange authoritative whole-vehicle state before gameplay systems are added.",
+  "dependencies": [],
+  "entry_criteria": [
+    "Approved v0.4 specification is available.",
+    "Pinned engine versions and repository access are available."
+  ],
+  "non_goals": [
+    "Custom starter technical art.",
+    "Weapons, missions, persistence and economy.",
+    "Detailed vehicle assembly.",
+    "Client prediction."
+  ],
+  "test_environment": {
+    "build_configuration": [
+      "profile or release-like build",
+      "debug symbols retained for test captures"
+    ],
+    "topology": [
+      "single client plus authoritative host"
+    ],
+    "required_assets": [
+      "tranche-specific test map and fixtures",
+      "versioned data definitions"
+    ],
+    "network_profiles": [],
+    "notes": [
+      "No player-accessible third-person driving camera.",
+      "No internal vehicle-mechanics simulation.",
+      "No active gameplay instance may exceed 30 vehicles."
+    ]
+  },
+  "goals": [
+    {
+      "id": "T0-BUILD-001",
+      "category": "build",
+      "priority": "blocker",
+      "statement": "The pinned O3DE client and authoritative host build reproducibly with the packaged Chrono dependency.",
+      "method": "automated",
+      "procedure": [
+        "Run a clean dependency/bootstrap step.",
+        "Build the Windows profile client.",
+        "Build at least one headless authoritative host target.",
+        "Run the executable smoke tests."
+      ],
+      "assertions": [
+        {
+          "metric": "clean_client_build_exit_code",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "clean_server_build_exit_code",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "chrono_link_smoke_test",
+          "operator": "==",
+          "target": "pass"
+        }
+      ],
+      "evidence": [
+        "CI build logs",
+        "dependency lock or package manifest",
+        "smoke-test report"
+      ]
+    },
+    {
+      "id": "T0-PHYS-002",
+      "category": "physics",
+      "priority": "blocker",
+      "statement": "O3DE and Chrono agree on vehicle position, orientation and wheel transforms on shared terrain.",
+      "method": "instrumented",
+      "procedure": [
+        "Spawn one generic vehicle at a known transform.",
+        "Drive a fixed input sequence.",
+        "Record Chrono and rendered proxy transforms.",
+        "Compare coordinate and terrain alignment."
+      ],
+      "assertions": [
+        {
+          "metric": "terrain_origin_error_m",
+          "operator": "<=",
+          "target": 0.02,
+          "unit": "m"
+        },
+        {
+          "metric": "render_proxy_position_error_m",
+          "operator": "<=",
+          "target": 0.05,
+          "unit": "m"
+        },
+        {
+          "metric": "orientation_error_deg",
+          "operator": "<=",
+          "target": 1.0,
+          "unit": "degrees"
+        }
+      ],
+      "evidence": [
+        "transform trace",
+        "terrain checksum report",
+        "captured test video"
+      ]
+    },
+    {
+      "id": "T0-CAM-003",
+      "category": "camera",
+      "priority": "blocker",
+      "statement": "The cockpit camera remains stable and no player-accessible third-person driving view exists.",
+      "method": "mixed",
+      "procedure": [
+        "Drive over the integration terrain.",
+        "Apply normal steering, braking and collision inputs.",
+        "Enumerate runtime camera actions and bindings.",
+        "Attempt to enter any external view while driving."
+      ],
+      "assertions": [
+        {
+          "metric": "camera_nan_or_invalid_frames",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "player_external_driving_camera_actions",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "camera_remains_attached_to_cockpit",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "input-action inventory",
+        "camera telemetry",
+        "test video"
+      ]
+    },
+    {
+      "id": "T0-PERF-004",
+      "category": "performance",
+      "priority": "critical",
+      "statement": "The authoritative simulation publishes timing telemetry and enforces the permanent active-vehicle ceiling.",
+      "method": "automated",
+      "procedure": [
+        "Create the active-vehicle registry.",
+        "Spawn 30 active test vehicles.",
+        "Attempt one additional active spawn.",
+        "Capture simulation timing and registry events."
+      ],
+      "assertions": [
+        {
+          "metric": "peak_active_vehicle_count",
+          "operator": "==",
+          "target": 30
+        },
+        {
+          "metric": "thirty_first_spawn_result",
+          "operator": "in_range",
+          "target": [
+            "rejected",
+            "queued"
+          ]
+        },
+        {
+          "metric": "simulation_timing_metrics_present",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "registry event log",
+        "telemetry output",
+        "automated test result"
+      ]
+    }
+  ],
+  "exit_gate": {
+    "rule": "all_blocker_and_critical_pass",
+    "required_priorities": [
+      "blocker",
+      "critical"
+    ],
+    "required_evidence": [
+      "machine-readable test result",
+      "logs or telemetry",
+      "artifact or build identifier"
+    ],
+    "decision_owner": "project technical owner",
+    "notes": [
+      "Proceed only when build packaging, coordinate conversion, terrain alignment, transform synchronization, first-person camera stability and server simulation have no unresolved architecture blocker."
+    ]
+  }
+}

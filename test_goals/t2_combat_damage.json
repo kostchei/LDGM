@@ -1,0 +1,218 @@
+{
+  "schema_version": "1.0",
+  "source_specification": "legally_distinct_gorka_morka_prd_eng_spec_v0_4.md",
+  "tranche_id": "T2",
+  "title": "Combat and Broad Damage States",
+  "phase": "prototype",
+  "mvp": true,
+  "purpose": "Add fixed-forward combat and inexpensive damage feedback without internal-mechanics simulation or detailed damage rendering.",
+  "dependencies": [
+    "T1"
+  ],
+  "entry_criteria": [
+    "T1 exit gate has passed."
+  ],
+  "non_goals": [
+    "Panel deformation, damaged meshes, impact decals and detailed damage textures.",
+    "Individually simulated engines, transmissions, oil systems, fuel lines or other internals.",
+    "Complex armour penetration simulation.",
+    "Third-person combat camera."
+  ],
+  "test_environment": {
+    "build_configuration": [
+      "profile or release-like build",
+      "debug symbols retained for test captures"
+    ],
+    "topology": [
+      "single client plus authoritative host"
+    ],
+    "required_assets": [
+      "tranche-specific test map and fixtures",
+      "versioned data definitions"
+    ],
+    "network_profiles": [],
+    "notes": [
+      "No player-accessible third-person driving camera.",
+      "No internal vehicle-mechanics simulation.",
+      "No active gameplay instance may exceed 30 vehicles."
+    ]
+  },
+  "goals": [
+    {
+      "id": "T2-COMB-001",
+      "category": "combat",
+      "priority": "blocker",
+      "statement": "The two fixed rifles fire from their physical mounts, track ammunition separately and are resolved by authority.",
+      "method": "mixed",
+      "procedure": [
+        "Load 50 rounds into each rifle.",
+        "Fire left, right and grouped actions.",
+        "Verify muzzle origin and obstruction.",
+        "Attempt client-side ammunition or fire-rate tampering."
+      ],
+      "assertions": [
+        {
+          "metric": "left_starting_ammunition",
+          "operator": "==",
+          "target": 50,
+          "unit": "rounds"
+        },
+        {
+          "metric": "right_starting_ammunition",
+          "operator": "==",
+          "target": 50,
+          "unit": "rounds"
+        },
+        {
+          "metric": "ammunition_counts_are_independent",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "client_authoritative_ammo_change_accepted",
+          "operator": "==",
+          "target": false
+        }
+      ],
+      "evidence": [
+        "combat log",
+        "muzzle trace capture",
+        "tamper-test result"
+      ]
+    },
+    {
+      "id": "T2-DMG-002",
+      "category": "damage",
+      "priority": "blocker",
+      "statement": "Ordinary vehicle damage is communicated through broad performance, instrument or audio changes without internal-mechanics simulation.",
+      "method": "mixed",
+      "procedure": [
+        "Apply a damaged-state event.",
+        "Drive the same test sequence before and after damage.",
+        "Observe cockpit pressure/warning state and audio selection.",
+        "Inspect runtime data for internal component objects."
+      ],
+      "assertions": [
+        {
+          "metric": "damaged_state_changes_at_least_one_driving_metric",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "damaged_state_changes_instrument_or_warning",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "damaged_state_changes_audio",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "simulated_internal_mechanical_fault_count",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "before/after telemetry",
+        "cockpit capture",
+        "audio event log",
+        "runtime state inspection"
+      ]
+    },
+    {
+      "id": "T2-DMG-003",
+      "category": "damage",
+      "priority": "critical",
+      "statement": "Smoke or fire is reserved for critical, heavily damaged or destroyed states.",
+      "method": "automated",
+      "procedure": [
+        "Cycle a test vehicle through intact, damaged, critical and destroyed states.",
+        "Record the selected external marker state."
+      ],
+      "assertions": [
+        {
+          "metric": "intact_external_smoke_or_fire",
+          "operator": "==",
+          "target": false
+        },
+        {
+          "metric": "damaged_external_smoke_or_fire",
+          "operator": "==",
+          "target": false
+        },
+        {
+          "metric": "critical_external_marker",
+          "operator": "in_range",
+          "target": [
+            "smoke",
+            "fire",
+            "smoke_and_fire"
+          ]
+        },
+        {
+          "metric": "destroyed_external_marker_present",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "state-to-marker test report",
+        "captured state sequence"
+      ]
+    },
+    {
+      "id": "T2-REPAIR-004",
+      "category": "ui",
+      "priority": "critical",
+      "statement": "The repair screen highlights broad damaged zones and does not expose simulated internal machinery.",
+      "method": "mixed",
+      "procedure": [
+        "Apply damage to multiple repair zones.",
+        "Open the repair view.",
+        "Compare highlighted zones with authoritative records.",
+        "Search repair UI data for prohibited internal subsystem records."
+      ],
+      "assertions": [
+        {
+          "metric": "repair_zone_mapping_accuracy_pct",
+          "operator": "==",
+          "target": 100,
+          "unit": "%"
+        },
+        {
+          "metric": "internal_mechanical_components_shown",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "repair_cost_and_severity_present",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "repair-record fixture",
+        "UI screenshots",
+        "mapping test"
+      ]
+    }
+  ],
+  "exit_gate": {
+    "rule": "all_blocker_and_critical_pass",
+    "required_priorities": [
+      "blocker",
+      "critical"
+    ],
+    "required_evidence": [
+      "machine-readable test result",
+      "logs or telemetry",
+      "artifact or build identifier"
+    ],
+    "decision_owner": "project technical owner",
+    "notes": [
+      "A player can shoot, be hit and correctly infer ordinary damage from vehicle behaviour, instruments or audio; critical vehicles may smoke or burn; repair data identifies broad damaged zones."
+    ]
+  }
+}

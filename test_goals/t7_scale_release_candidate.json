@@ -1,0 +1,264 @@
+{
+  "schema_version": "1.0",
+  "source_specification": "legally_distinct_gorka_morka_prd_eng_spec_v0_4.md",
+  "tranche_id": "T7",
+  "title": "Thirty-Vehicle Scale and MVP Release Candidate",
+  "phase": "release_candidate",
+  "mvp": true,
+  "purpose": "Qualify the permanent 30-active-vehicle ceiling, performance budgets and operational reliability for the MVP.",
+  "dependencies": [
+    "T6"
+  ],
+  "entry_criteria": [
+    "T6 exit gate has passed."
+  ],
+  "non_goals": [
+    "Raising the vehicle cap to solve performance problems.",
+    "Deformable terrain or vehicle panels.",
+    "Level 2 content.",
+    "Seamless MMO architecture."
+  ],
+  "test_environment": {
+    "build_configuration": [
+      "profile or release-like build",
+      "debug symbols retained for test captures"
+    ],
+    "topology": [
+      "dedicated authoritative server",
+      "multiple client processes"
+    ],
+    "required_assets": [
+      "tranche-specific test map and fixtures",
+      "versioned data definitions"
+    ],
+    "network_profiles": [
+      "baseline LAN",
+      "50 ms latency",
+      "100 ms latency",
+      "200 ms latency",
+      "1% loss",
+      "5% loss",
+      "10% loss"
+    ],
+    "notes": [
+      "No player-accessible third-person driving camera.",
+      "No internal vehicle-mechanics simulation.",
+      "No active gameplay instance may exceed 30 vehicles."
+    ]
+  },
+  "goals": [
+    {
+      "id": "T7-SCALE-001",
+      "category": "performance",
+      "priority": "blocker",
+      "statement": "The active simulation supports exactly 30 vehicles and never activates a thirty-first.",
+      "method": "instrumented",
+      "procedure": [
+        "Run a representative mix of player, AI and active parked vehicles.",
+        "Increase the active count to 30.",
+        "Attempt additional spawns and LOD promotions.",
+        "Exercise despawn and queued activation."
+      ],
+      "assertions": [
+        {
+          "metric": "peak_active_vehicle_count",
+          "operator": "==",
+          "target": 30
+        },
+        {
+          "metric": "active_count_overflow_events",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "overflow_requests_rejected_or_queued_pct",
+          "operator": "==",
+          "target": 100,
+          "unit": "%"
+        },
+        {
+          "metric": "queued_vehicle_activates_after_slot_release",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "load-test telemetry",
+        "registry audit",
+        "spawn/LOD event trace"
+      ]
+    },
+    {
+      "id": "T7-PERF-002",
+      "category": "performance",
+      "priority": "blocker",
+      "statement": "The 30-vehicle representative scenario meets the agreed client and server budgets on the defined qualification machines.",
+      "method": "instrumented",
+      "procedure": [
+        "Run the release scenario at 1080p target settings.",
+        "Capture client frame, server tick, Chrono, combat, mission and networking timings.",
+        "Repeat for at least ten minutes after warm-up."
+      ],
+      "assertions": [
+        {
+          "metric": "client_frame_time_p95_ms",
+          "operator": "<=",
+          "target": 16.67,
+          "unit": "ms",
+          "notes": "Provisional v0.4 target on the defined minimum client."
+        },
+        {
+          "metric": "server_tick_time_p95_ms",
+          "operator": "<=",
+          "target": 16.67,
+          "unit": "ms"
+        },
+        {
+          "metric": "chrono_whole_vehicle_time_p95_ms",
+          "operator": "<=",
+          "target": 9.0,
+          "unit": "ms"
+        },
+        {
+          "metric": "sustained_tick_overrun_seconds",
+          "operator": "==",
+          "target": 0,
+          "unit": "seconds"
+        }
+      ],
+      "evidence": [
+        "profiling capture",
+        "hardware definition",
+        "performance summary"
+      ]
+    },
+    {
+      "id": "T7-LOD-003",
+      "category": "physics",
+      "priority": "critical",
+      "statement": "Simulation LOD transitions conserve authoritative gameplay state.",
+      "method": "automated",
+      "procedure": [
+        "Move vehicles through LOD 0, 1, 2 and parked/off-zone states.",
+        "Record state before and after transitions.",
+        "Include a damaged, armed and mission-bound vehicle."
+      ],
+      "assertions": [
+        {
+          "metric": "position_velocity_discontinuity_above_tolerance_count",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "fuel_ammunition_condition_mission_state_match",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "active_registry_count_matches_lod_state",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "LOD transition report",
+        "state diffs"
+      ]
+    },
+    {
+      "id": "T7-REL-004",
+      "category": "reliability",
+      "priority": "blocker",
+      "statement": "The release candidate survives repeated missions, reconnects and service restart without progressive corruption.",
+      "method": "mixed",
+      "procedure": [
+        "Run an extended automated or supervised session containing mission completion, PvP, repair, auction, disconnect and reconnect.",
+        "Restart the authoritative service during a safe checkpoint.",
+        "Run database integrity checks."
+      ],
+      "assertions": [
+        {
+          "metric": "soak_duration_hours",
+          "operator": ">=",
+          "target": 8,
+          "unit": "hours"
+        },
+        {
+          "metric": "uncaught_server_crash_count",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "database_integrity_error_count",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "duplicate_reward_inventory_vehicle_count",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "soak log",
+        "database integrity report",
+        "crash report summary"
+      ]
+    },
+    {
+      "id": "T7-REG-005",
+      "category": "content",
+      "priority": "blocker",
+      "statement": "All MVP blocker and critical tests pass in the release build with permanent scope limits intact.",
+      "method": "automated",
+      "procedure": [
+        "Run all blocker and critical tests from T0 through T7 against the release candidate.",
+        "Run content lint for prohibited features.",
+        "Archive evidence."
+      ],
+      "assertions": [
+        {
+          "metric": "blocker_and_critical_test_result",
+          "operator": "==",
+          "target": "pass"
+        },
+        {
+          "metric": "player_third_person_driving_modes",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "internal_mechanics_simulation_definitions",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "runtime_panel_deformation_features",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "release test index",
+        "CI report",
+        "content-lint report"
+      ]
+    }
+  ],
+  "exit_gate": {
+    "rule": "all_blocker_and_critical_pass",
+    "required_priorities": [
+      "blocker",
+      "critical"
+    ],
+    "required_evidence": [
+      "machine-readable test result",
+      "logs or telemetry",
+      "artifact or build identifier"
+    ],
+    "decision_owner": "project technical owner",
+    "notes": [
+      "The release candidate meets the hard population rule, functional regression gates and agreed performance/reliability thresholds on the defined test machines."
+    ]
+  }
+}

@@ -1,0 +1,205 @@
+{
+  "schema_version": "1.0",
+  "source_specification": "legally_distinct_gorka_morka_prd_eng_spec_v0_4.md",
+  "tranche_id": "T3",
+  "title": "Single-Player Vertical Slice",
+  "phase": "vertical_slice",
+  "mvp": true,
+  "purpose": "Prove the complete game loop with one package-delivery mission before investing in broad persistence or multiplayer.",
+  "dependencies": [
+    "T2"
+  ],
+  "entry_criteria": [
+    "T2 exit gate has passed."
+  ],
+  "non_goals": [
+    "All four mission templates.",
+    "PostgreSQL persistence.",
+    "PvP, auctions and Despot Depot services.",
+    "More than one player."
+  ],
+  "test_environment": {
+    "build_configuration": [
+      "profile or release-like build",
+      "debug symbols retained for test captures"
+    ],
+    "topology": [
+      "single client plus authoritative host"
+    ],
+    "required_assets": [
+      "tranche-specific test map and fixtures",
+      "versioned data definitions"
+    ],
+    "network_profiles": [],
+    "notes": [
+      "No player-accessible third-person driving camera.",
+      "No internal vehicle-mechanics simulation.",
+      "No active gameplay instance may exceed 30 vehicles."
+    ]
+  },
+  "goals": [
+    {
+      "id": "T3-LOOP-001",
+      "category": "mission",
+      "priority": "blocker",
+      "statement": "A player can complete the full package-delivery loop from Bartertown departure through return and refit.",
+      "method": "manual",
+      "procedure": [
+        "Start from a clean profile.",
+        "Accept the package mission.",
+        "Load cargo and depart.",
+        "Reach the destination or trigger a supported failure.",
+        "Return to Bartertown.",
+        "Repair, refuel, rearm and install one salvaged part."
+      ],
+      "assertions": [
+        {
+          "metric": "mission_flow_steps_completed",
+          "operator": "all_pass",
+          "target": [
+            "accept",
+            "load",
+            "depart",
+            "objective",
+            "return",
+            "repair",
+            "refuel",
+            "rearm",
+            "install_part"
+          ]
+        },
+        {
+          "metric": "developer_console_required",
+          "operator": "==",
+          "target": false
+        },
+        {
+          "metric": "blocking_progression_bug_count",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "structured playtest record",
+        "save/profile snapshot",
+        "video"
+      ]
+    },
+    {
+      "id": "T3-TIME-002",
+      "category": "mission",
+      "priority": "major",
+      "statement": "The package mission is compatible with the intended 10\u201325 minute session length.",
+      "method": "manual",
+      "procedure": [
+        "Have at least five testers complete or fail the mission without developer shortcuts.",
+        "Record mission-active time and outcome.",
+        "Review outliers."
+      ],
+      "assertions": [
+        {
+          "metric": "completed_playtests",
+          "operator": ">=",
+          "target": 5
+        },
+        {
+          "metric": "median_mission_duration_min",
+          "operator": "in_range",
+          "target": [
+            10,
+            25
+          ],
+          "unit": "minutes"
+        }
+      ],
+      "evidence": [
+        "playtest timing sheet",
+        "outlier notes"
+      ]
+    },
+    {
+      "id": "T3-UX-003",
+      "category": "ui",
+      "priority": "critical",
+      "statement": "A new tester can understand route risk, fuel expectation, cargo state and vehicle damage without debug screens.",
+      "method": "manual",
+      "procedure": [
+        "Give the build to testers with only normal control instructions.",
+        "Ask them to select a route, identify fuel risk, notice damage and locate repair.",
+        "Record task success."
+      ],
+      "assertions": [
+        {
+          "metric": "route_selection_success_pct",
+          "operator": ">=",
+          "target": 80,
+          "unit": "%"
+        },
+        {
+          "metric": "own_damage_noticed_without_repair_screen_pct",
+          "operator": ">=",
+          "target": 80,
+          "unit": "%"
+        },
+        {
+          "metric": "critical_vehicle_recognition_pct",
+          "operator": ">=",
+          "target": 80,
+          "unit": "%"
+        }
+      ],
+      "evidence": [
+        "playtest questionnaire",
+        "observation notes"
+      ]
+    },
+    {
+      "id": "T3-CONTENT-004",
+      "category": "content",
+      "priority": "critical",
+      "statement": "The vertical slice contains no prohibited camera or damage presentation features.",
+      "method": "automated",
+      "procedure": [
+        "Scan input actions, runtime camera modes and vehicle damage asset references.",
+        "Run the release content linter."
+      ],
+      "assertions": [
+        {
+          "metric": "player_third_person_driving_modes",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "runtime_deformed_panel_assets",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "internal_mechanics_damage_definitions",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "content-lint report",
+        "camera/action inventory"
+      ]
+    }
+  ],
+  "exit_gate": {
+    "rule": "all_blocker_and_critical_pass",
+    "required_priorities": [
+      "blocker",
+      "critical"
+    ],
+    "required_evidence": [
+      "machine-readable test result",
+      "logs or telemetry",
+      "artifact or build identifier"
+    ],
+    "decision_owner": "project technical owner",
+    "notes": [
+      "A new tester can launch, accept the mission, drive, fight, take understandable damage, complete or fail, return and modify the vehicle without developer intervention."
+    ]
+  }
+}

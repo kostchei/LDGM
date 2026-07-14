@@ -1,0 +1,211 @@
+{
+  "schema_version": "1.0",
+  "source_specification": "legally_distinct_gorka_morka_prd_eng_spec_v0_4.md",
+  "tranche_id": "T5",
+  "title": "Authoritative Cooperative Multiplayer",
+  "phase": "mvp_build",
+  "mvp": true,
+  "purpose": "Add reliable server-authoritative play for up to four players while preserving the first-person vehicle feel and persistent state.",
+  "dependencies": [
+    "T4"
+  ],
+  "entry_criteria": [
+    "T4 exit gate has passed."
+  ],
+  "non_goals": [
+    "Eight-player target.",
+    "PvP band and contested-zone rules.",
+    "Local shadow prediction unless interpolation proves insufficient.",
+    "Thirty-vehicle performance qualification."
+  ],
+  "test_environment": {
+    "build_configuration": [
+      "profile or release-like build",
+      "debug symbols retained for test captures"
+    ],
+    "topology": [
+      "dedicated authoritative server",
+      "multiple client processes"
+    ],
+    "required_assets": [
+      "tranche-specific test map and fixtures",
+      "versioned data definitions"
+    ],
+    "network_profiles": [
+      "baseline LAN",
+      "50 ms latency",
+      "100 ms latency",
+      "200 ms latency",
+      "1% loss",
+      "5% loss",
+      "10% loss"
+    ],
+    "notes": [
+      "No player-accessible third-person driving camera.",
+      "No internal vehicle-mechanics simulation.",
+      "No active gameplay instance may exceed 30 vehicles."
+    ]
+  },
+  "goals": [
+    {
+      "id": "T5-NET-001",
+      "category": "network",
+      "priority": "blocker",
+      "statement": "Four players can join, drive, fire and complete a mission under server authority.",
+      "method": "mixed",
+      "procedure": [
+        "Start a dedicated server.",
+        "Join four clients.",
+        "Run a Level 1 mission with simultaneous driving and firing.",
+        "Disconnect and reconnect one client.",
+        "Complete the mission."
+      ],
+      "assertions": [
+        {
+          "metric": "simultaneous_connected_players",
+          "operator": "==",
+          "target": 4
+        },
+        {
+          "metric": "mission_completed_after_reconnect",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "duplicate_vehicle_or_inventory_count",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "server log",
+        "client captures",
+        "database audit"
+      ]
+    },
+    {
+      "id": "T5-NET-002",
+      "category": "network",
+      "priority": "critical",
+      "statement": "The game remains usable under representative latency, packet loss and snapshot reordering.",
+      "method": "instrumented",
+      "procedure": [
+        "Run the four-player scenario at 50, 100 and 200 ms latency.",
+        "Repeat at 1%, 5% and 10% packet loss.",
+        "Inject snapshot reordering.",
+        "Capture correction and disconnect metrics."
+      ],
+      "assertions": [
+        {
+          "metric": "network_profiles_executed",
+          "operator": "==",
+          "target": 7
+        },
+        {
+          "metric": "authority_desync_causing_state_duplication",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "unrecoverable_client_disconnects",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "network test report",
+        "correction telemetry",
+        "server/client logs"
+      ]
+    },
+    {
+      "id": "T5-SEC-003",
+      "category": "security",
+      "priority": "blocker",
+      "statement": "The server rejects impossible transforms, ammunition changes, fire rates and inventory requests.",
+      "method": "automated",
+      "procedure": [
+        "Submit forged transforms.",
+        "Submit ammunition increases.",
+        "Exceed weapon fire rate.",
+        "Attempt to install or sell an unowned part."
+      ],
+      "assertions": [
+        {
+          "metric": "forged_transform_accept_count",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "forged_ammunition_accept_count",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "invalid_fire_rate_accept_count",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "unowned_item_operation_accept_count",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "security test output",
+        "server rejection audit"
+      ]
+    },
+    {
+      "id": "T5-CAM-004",
+      "category": "camera",
+      "priority": "critical",
+      "statement": "Network corrections do not create unusable first-person camera motion.",
+      "method": "mixed",
+      "procedure": [
+        "Induce controlled vehicle correction during acceleration, turning and collision.",
+        "Record root correction and cockpit camera motion.",
+        "Review severe cases."
+      ],
+      "assertions": [
+        {
+          "metric": "camera_invalid_frames",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "camera_detaches_from_cockpit",
+          "operator": "==",
+          "target": false
+        },
+        {
+          "metric": "correction_absorber_required_decision_recorded",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "correction trace",
+        "camera video",
+        "decision record"
+      ]
+    }
+  ],
+  "exit_gate": {
+    "rule": "all_blocker_and_critical_pass",
+    "required_priorities": [
+      "blocker",
+      "critical"
+    ],
+    "required_evidence": [
+      "machine-readable test result",
+      "logs or telemetry",
+      "artifact or build identifier"
+    ],
+    "decision_owner": "project technical owner",
+    "notes": [
+      "Four players can complete Level 1 missions under representative network impairment without state duplication, authority violations or unusable first-person correction."
+    ]
+  }
+}

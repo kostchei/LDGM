@@ -1,0 +1,19 @@
+# O3DE and native build output
+build/
+Bin*/
+Cache/
+AssetProcessorTemp/
+user/
+
+# IDE and operating-system files
+.idea/
+.vscode/
+*.user
+*.suo
+.DS_Store
+Thumbs.db
+
+# Python validation cache
+__pycache__/
+*.pyc
+

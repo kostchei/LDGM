@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "plan_version": "0.1",
+  "source_specification": "legally_distinct_gorka_morka_prd_eng_spec_v0_4.md",
+  "schema_file": "test_goal.schema.json",
+  "mvp_final_tranche": "T7",
+  "post_mvp_start": "T8",
+  "tranches": [
+    {
+      "tranche_id": "T0",
+      "title": "Engine and Vehicle Integration Spike",
+      "phase": "foundation",
+      "mvp": true,
+      "file": "t0_integration_spike.json",
+      "dependencies": []
+    },
+    {
+      "tranche_id": "T1",
+      "title": "First-Person Driving Prototype",
+      "phase": "prototype",
+      "mvp": true,
+      "file": "t1_driving_prototype.json",
+      "dependencies": [
+        "T0"
+      ]
+    },
+    {
+      "tranche_id": "T2",
+      "title": "Combat and Broad Damage States",
+      "phase": "prototype",
+      "mvp": true,
+      "file": "t2_combat_damage.json",
+      "dependencies": [
+        "T1"
+      ]
+    },
+    {
+      "tranche_id": "T3",
+      "title": "Single-Player Vertical Slice",
+      "phase": "vertical_slice",
+      "mvp": true,
+      "file": "t3_vertical_slice.json",
+      "dependencies": [
+        "T2"
+      ]
+    },
+    {
+      "tranche_id": "T4",
+      "title": "Persistent Level 1 Game Loop",
+      "phase": "mvp_build",
+      "mvp": true,
+      "file": "t4_persistent_level_one.json",
+      "dependencies": [
+        "T3"
+      ]
+    },
+    {
+      "tranche_id": "T5",
+      "title": "Authoritative Cooperative Multiplayer",
+      "phase": "mvp_build",
+      "mvp": true,
+      "file": "t5_authoritative_multiplayer.json",
+      "dependencies": [
+        "T4"
+      ]
+    },
+    {
+      "tranche_id": "T6",
+      "title": "Contested Zone Alpha",
+      "phase": "alpha",
+      "mvp": true,
+      "file": "t6_contested_zone_alpha.json",
+      "dependencies": [
+        "T5"
+      ]
+    },
+    {
+      "tranche_id": "T7",
+      "title": "Thirty-Vehicle Scale and MVP Release Candidate",
+      "phase": "release_candidate",
+      "mvp": true,
+      "file": "t7_scale_release_candidate.json",
+      "dependencies": [
+        "T6"
+      ]
+    },
+    {
+      "tranche_id": "T8",
+      "title": "Level 2 Expansion",
+      "phase": "post_mvp",
+      "mvp": false,
+      "file": "t8_level_two_expansion.json",
+      "dependencies": [
+        "T7"
+      ]
+    }
+  ]
+}

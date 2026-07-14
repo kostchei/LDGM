@@ -1,0 +1,211 @@
+{
+  "schema_version": "1.0",
+  "source_specification": "legally_distinct_gorka_morka_prd_eng_spec_v0_4.md",
+  "tranche_id": "T4",
+  "title": "Persistent Level 1 Game Loop",
+  "phase": "mvp_build",
+  "mvp": true,
+  "purpose": "Turn the vertical slice into a durable solo game loop with all Level 1 mission types and authoritative progression.",
+  "dependencies": [
+    "T3"
+  ],
+  "entry_criteria": [
+    "T3 exit gate has passed."
+  ],
+  "non_goals": [
+    "Player-versus-player zones.",
+    "Auction settlement between players.",
+    "More than one connected player as a release requirement.",
+    "Level 2 progression."
+  ],
+  "test_environment": {
+    "build_configuration": [
+      "profile or release-like build",
+      "debug symbols retained for test captures"
+    ],
+    "topology": [
+      "single client plus authoritative host"
+    ],
+    "required_assets": [
+      "tranche-specific test map and fixtures",
+      "versioned data definitions"
+    ],
+    "network_profiles": [],
+    "notes": [
+      "No player-accessible third-person driving camera.",
+      "No internal vehicle-mechanics simulation.",
+      "No active gameplay instance may exceed 30 vehicles."
+    ]
+  },
+  "goals": [
+    {
+      "id": "T4-PERS-001",
+      "category": "persistence",
+      "priority": "blocker",
+      "statement": "Character, vehicle, inventory and active mission state survive clean restart and reconnect.",
+      "method": "automated",
+      "procedure": [
+        "Create a character and vehicle.",
+        "Accept a mission and change fuel, ammunition, inventory and vehicle condition.",
+        "Restart services.",
+        "Reconnect and compare authoritative state."
+      ],
+      "assertions": [
+        {
+          "metric": "character_state_match",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "vehicle_state_match",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "inventory_state_match",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "mission_state_match",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "database fixture diff",
+        "reconnect test log"
+      ]
+    },
+    {
+      "id": "T4-PERS-002",
+      "category": "persistence",
+      "priority": "blocker",
+      "statement": "Duplicate or retried reward requests cannot duplicate currency, items, Fame or vehicles.",
+      "method": "automated",
+      "procedure": [
+        "Complete a mission using a fixed idempotency key.",
+        "Replay and concurrently retry the reward request.",
+        "Inspect resulting balances and audit records."
+      ],
+      "assertions": [
+        {
+          "metric": "reward_commits_for_one_idempotency_key",
+          "operator": "==",
+          "target": 1
+        },
+        {
+          "metric": "duplicated_currency",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "duplicated_items",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "duplicated_vehicles",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "transaction log",
+        "database assertions",
+        "audit record"
+      ]
+    },
+    {
+      "id": "T4-MISS-003",
+      "category": "mission",
+      "priority": "critical",
+      "statement": "All four Level 1 mission types can be loaded from validated data and reach complete or failed terminal states.",
+      "method": "automated",
+      "procedure": [
+        "Validate mission JSON.",
+        "Instantiate each Level 1 mission template.",
+        "Exercise success and failure paths.",
+        "Verify transactional consequence or reward commit."
+      ],
+      "assertions": [
+        {
+          "metric": "level_one_mission_types_passing",
+          "operator": "==",
+          "target": 4
+        },
+        {
+          "metric": "mission_schema_errors",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "terminal_states_without_commit",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "schema report",
+        "mission state-machine tests"
+      ]
+    },
+    {
+      "id": "T4-ECON-004",
+      "category": "economy",
+      "priority": "critical",
+      "statement": "Install, repair, refuel, rearm, shop and salvage operations preserve ownership and balances transactionally.",
+      "method": "automated",
+      "procedure": [
+        "Run successful operations.",
+        "Inject version conflicts and insufficient-balance cases.",
+        "Retry requests.",
+        "Inspect inventory and audit state."
+      ],
+      "assertions": [
+        {
+          "metric": "successful_economy_operations",
+          "operator": "all_pass",
+          "target": [
+            "install",
+            "repair",
+            "refuel",
+            "rearm",
+            "purchase",
+            "salvage"
+          ]
+        },
+        {
+          "metric": "partial_transaction_count",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "ownership_violation_count",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "repository test output",
+        "transaction traces"
+      ]
+    }
+  ],
+  "exit_gate": {
+    "rule": "all_blocker_and_critical_pass",
+    "required_priorities": [
+      "blocker",
+      "critical"
+    ],
+    "required_evidence": [
+      "machine-readable test result",
+      "logs or telemetry",
+      "artifact or build identifier"
+    ],
+    "decision_owner": "project technical owner",
+    "notes": [
+      "A player can complete repeated Level 1 sessions across restarts without losing or duplicating characters, vehicles, inventory, mission state or rewards."
+    ]
+  }
+}

@@ -1,0 +1,208 @@
+{
+  "schema_version": "1.0",
+  "source_specification": "legally_distinct_gorka_morka_prd_eng_spec_v0_4.md",
+  "tranche_id": "T6",
+  "title": "Contested Zone Alpha",
+  "phase": "alpha",
+  "mvp": true,
+  "purpose": "Add the territorial risk layer, eight-player target and dangerous service hub.",
+  "dependencies": [
+    "T5"
+  ],
+  "entry_criteria": [
+    "T5 exit gate has passed."
+  ],
+  "non_goals": [
+    "Large faction wars.",
+    "Full-loot assumptions unless separately approved.",
+    "Level 2 specialist equipment.",
+    "More than 30 active vehicles."
+  ],
+  "test_environment": {
+    "build_configuration": [
+      "profile or release-like build",
+      "debug symbols retained for test captures"
+    ],
+    "topology": [
+      "dedicated authoritative server",
+      "multiple client processes"
+    ],
+    "required_assets": [
+      "tranche-specific test map and fixtures",
+      "versioned data definitions"
+    ],
+    "network_profiles": [
+      "baseline LAN",
+      "50 ms latency",
+      "100 ms latency",
+      "200 ms latency",
+      "1% loss",
+      "5% loss",
+      "10% loss"
+    ],
+    "notes": [
+      "No player-accessible third-person driving camera.",
+      "No internal vehicle-mechanics simulation.",
+      "No active gameplay instance may exceed 30 vehicles."
+    ]
+  },
+  "goals": [
+    {
+      "id": "T6-PVP-001",
+      "category": "mission",
+      "priority": "blocker",
+      "statement": "Contested PvP begins and ends only at clear zone boundaries and follows the approved defeat/recovery policy.",
+      "method": "mixed",
+      "procedure": [
+        "Approach the contested boundary from a safe route.",
+        "Verify warning and rule transition.",
+        "Conduct PvP.",
+        "Exit or recover after defeat.",
+        "Inspect authoritative rule-space events."
+      ],
+      "assertions": [
+        {
+          "metric": "pvp_enabled_in_safe_zone",
+          "operator": "==",
+          "target": false
+        },
+        {
+          "metric": "pvp_enabled_in_contested_zone",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "boundary_warning_present",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "defeat_policy_applied_consistently",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "zone event log",
+        "PvP test record",
+        "UI capture"
+      ]
+    },
+    {
+      "id": "T6-NET-002",
+      "category": "network",
+      "priority": "blocker",
+      "statement": "Eight players can drive and fight in the contested-zone scenario without authority or persistence failure.",
+      "method": "mixed",
+      "procedure": [
+        "Join eight clients to a dedicated server.",
+        "Split players between safe and contested routes.",
+        "Run simultaneous combat, depot and return actions.",
+        "Reconnect at least one client."
+      ],
+      "assertions": [
+        {
+          "metric": "simultaneous_connected_players",
+          "operator": "==",
+          "target": 8
+        },
+        {
+          "metric": "authority_violation_count",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "persistence_duplication_count",
+          "operator": "==",
+          "target": 0
+        }
+      ],
+      "evidence": [
+        "load-session log",
+        "database audit",
+        "network telemetry"
+      ]
+    },
+    {
+      "id": "T6-ECON-003",
+      "category": "economy",
+      "priority": "blocker",
+      "statement": "Auction listing and settlement transfer ownership and payment exactly once.",
+      "method": "automated",
+      "procedure": [
+        "Create a listing.",
+        "Place or accept the supported transaction action.",
+        "Race two settlement attempts.",
+        "Retry the winning request.",
+        "Inspect ownership, balances and listing state."
+      ],
+      "assertions": [
+        {
+          "metric": "successful_settlements_per_listing",
+          "operator": "==",
+          "target": 1
+        },
+        {
+          "metric": "owners_after_settlement",
+          "operator": "==",
+          "target": 1
+        },
+        {
+          "metric": "seller_payments_per_listing",
+          "operator": "==",
+          "target": 1
+        }
+      ],
+      "evidence": [
+        "auction transaction log",
+        "database assertions"
+      ]
+    },
+    {
+      "id": "T6-REPAIR-004",
+      "category": "ui",
+      "priority": "critical",
+      "statement": "Expanded armour and repair-zone data remain consistent across vehicle variants.",
+      "method": "automated",
+      "procedure": [
+        "Validate each vehicle's armour coverage and schematic map.",
+        "Apply hits to every supported zone.",
+        "Compare hit zone, recorded repair zone and highlighted UI region."
+      ],
+      "assertions": [
+        {
+          "metric": "vehicle_variants_with_complete_zone_map_pct",
+          "operator": "==",
+          "target": 100,
+          "unit": "%"
+        },
+        {
+          "metric": "hit_to_repair_zone_mapping_accuracy_pct",
+          "operator": "==",
+          "target": 100,
+          "unit": "%"
+        }
+      ],
+      "evidence": [
+        "zone-map validation report",
+        "mapping tests"
+      ]
+    }
+  ],
+  "exit_gate": {
+    "rule": "all_blocker_and_critical_pass",
+    "required_priorities": [
+      "blocker",
+      "critical"
+    ],
+    "required_evidence": [
+      "machine-readable test result",
+      "logs or telemetry",
+      "artifact or build identifier"
+    ],
+    "decision_owner": "project technical owner",
+    "notes": [
+      "Players can knowingly enter and leave the contested band, fight under server authority, use the depot and settle auction transactions without duplication or ambiguous PvP rules."
+    ]
+  }
+}

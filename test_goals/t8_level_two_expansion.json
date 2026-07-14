@@ -1,0 +1,199 @@
+{
+  "schema_version": "1.0",
+  "source_specification": "legally_distinct_gorka_morka_prd_eng_spec_v0_4.md",
+  "tranche_id": "T8",
+  "title": "Level 2 Expansion",
+  "phase": "post_mvp",
+  "mvp": false,
+  "purpose": "Add Fame-gated progression and specialist external equipment without expanding into internal vehicle simulation.",
+  "dependencies": [
+    "T7"
+  ],
+  "entry_criteria": [
+    "T7 exit gate has passed."
+  ],
+  "non_goals": [
+    "Internal component simulation.",
+    "Aircraft, boats or walkers.",
+    "Globally deformable terrain.",
+    "Unbounded exotic equipment systems."
+  ],
+  "test_environment": {
+    "build_configuration": [
+      "profile or release-like build",
+      "debug symbols retained for test captures"
+    ],
+    "topology": [
+      "dedicated authoritative server",
+      "multiple client processes"
+    ],
+    "required_assets": [
+      "tranche-specific test map and fixtures",
+      "versioned data definitions"
+    ],
+    "network_profiles": [
+      "baseline LAN",
+      "50 ms latency",
+      "100 ms latency",
+      "200 ms latency",
+      "1% loss",
+      "5% loss",
+      "10% loss"
+    ],
+    "notes": [
+      "No player-accessible third-person driving camera.",
+      "No internal vehicle-mechanics simulation.",
+      "No active gameplay instance may exceed 30 vehicles."
+    ]
+  },
+  "goals": [
+    {
+      "id": "T8-PROG-001",
+      "category": "mission",
+      "priority": "blocker",
+      "statement": "The Level 2 gate unlocks at permanent Fame 20 according to the approved progression decision.",
+      "method": "automated",
+      "procedure": [
+        "Test permanent Fame values below, at and above 20.",
+        "Test Display Fame contribution according to the approved rule.",
+        "Attempt direct client unlock requests."
+      ],
+      "assertions": [
+        {
+          "metric": "unlock_below_required_fame",
+          "operator": "==",
+          "target": false
+        },
+        {
+          "metric": "unlock_at_required_fame",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "client_forced_unlock_accepted",
+          "operator": "==",
+          "target": false
+        }
+      ],
+      "evidence": [
+        "progression test report",
+        "authority audit"
+      ]
+    },
+    {
+      "id": "T8-MISS-002",
+      "category": "mission",
+      "priority": "critical",
+      "statement": "Multi-stage Level 2 missions resume correctly and commit rewards once.",
+      "method": "automated",
+      "procedure": [
+        "Instantiate each Level 2 mission template.",
+        "Advance to an intermediate stage.",
+        "Disconnect or restart.",
+        "Resume and complete.",
+        "Replay completion requests."
+      ],
+      "assertions": [
+        {
+          "metric": "multi_stage_resume_success_pct",
+          "operator": "==",
+          "target": 100,
+          "unit": "%"
+        },
+        {
+          "metric": "reward_commits_per_run",
+          "operator": "==",
+          "target": 1
+        }
+      ],
+      "evidence": [
+        "mission persistence tests",
+        "transaction audit"
+      ]
+    },
+    {
+      "id": "T8-SCOPE-003",
+      "category": "content",
+      "priority": "blocker",
+      "statement": "Specialist equipment uses the existing external-part and broad-condition architecture without internal mechanics or cap expansion.",
+      "method": "automated",
+      "procedure": [
+        "Validate specialist part schemas.",
+        "Inspect runtime entities and damage definitions.",
+        "Run the active-vehicle cap tests with Level 2 content enabled."
+      ],
+      "assertions": [
+        {
+          "metric": "specialist_parts_with_internal_simulated_subsystems",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "specialist_parts_missing_external_mount_mass_or_condition_data",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "active_vehicle_cap_with_level_two_content",
+          "operator": "==",
+          "target": 30
+        }
+      ],
+      "evidence": [
+        "schema validation",
+        "runtime content inspection",
+        "scale-test result"
+      ]
+    },
+    {
+      "id": "T8-ECON-004",
+      "category": "economy",
+      "priority": "critical",
+      "statement": "Level 2 rewards and sinks do not invalidate the measured Level 1 economy.",
+      "method": "instrumented",
+      "procedure": [
+        "Run simulated and live progression cohorts using MVP telemetry.",
+        "Measure time to replacement, repair burden, currency sources/sinks and specialist-part acquisition.",
+        "Review exploit paths."
+      ],
+      "assertions": [
+        {
+          "metric": "economy_model_review_completed",
+          "operator": "==",
+          "target": true
+        },
+        {
+          "metric": "known_infinite_currency_or_item_loops",
+          "operator": "==",
+          "target": 0
+        },
+        {
+          "metric": "level_one_progression_remains_functional",
+          "operator": "==",
+          "target": true
+        }
+      ],
+      "evidence": [
+        "economy simulation report",
+        "telemetry comparison",
+        "exploit review"
+      ]
+    }
+  ],
+  "exit_gate": {
+    "rule": "all_blocker_and_critical_pass",
+    "required_priorities": [
+      "blocker",
+      "critical"
+    ],
+    "required_evidence": [
+      "machine-readable test result",
+      "logs or telemetry",
+      "artifact or build identifier"
+    ],
+    "decision_owner": "project technical owner",
+    "notes": [
+      "Level 2 adds meaningful choices and mission complexity while preserving all permanent scope limits and MVP reliability gates."
+    ]
+  }
+}

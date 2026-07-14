@@ -1,0 +1,14 @@
+OK: manifest.json
+OK: t0_integration_spike.json
+OK: t1_driving_prototype.json
+OK: t2_combat_damage.json
+OK: t3_vertical_slice.json
+OK: t4_persistent_level_one.json
+OK: t5_authoritative_multiplayer.json
+OK: t6_contested_zone_alpha.json
+OK: t7_scale_release_candidate.json
+OK: t8_level_two_expansion.json
+OK: test_goal.schema.json
+
+Unique test goals: 37
+Tranche documents: 9
