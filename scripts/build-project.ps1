@@ -19,7 +19,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $resolvedBuildDirectory "CMakeCache.
     throw "The project is not configured. Run scripts/configure-project.ps1 first."
 }
 
-& $environment.CMake --build $resolvedBuildDirectory --config $Configuration --target @Targets -- "/m:$MaxParallelJobs" "/p:CL_MPCount=$MaxCompilerJobs"
+Copy-Item -LiteralPath (Join-Path $environment.RepoRoot "cmake\Directory.Build.targets") `
+    -Destination (Join-Path $resolvedBuildDirectory "Directory.Build.targets") -Force
+$disableCompilerBatching = if ($MaxCompilerJobs -eq 1) { "true" } else { "false" }
+
+& $environment.CMake --build $resolvedBuildDirectory --config $Configuration --target @Targets -- `
+    "/m:$MaxParallelJobs" "/p:CL_MPCount=$MaxCompilerJobs" `
+    "/p:LDGMDisableCompilerBatching=$disableCompilerBatching"
 if ($LASTEXITCODE -ne 0) {
     throw "O3DE project build failed with exit code $LASTEXITCODE."
 }

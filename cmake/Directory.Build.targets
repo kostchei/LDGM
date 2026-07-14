@@ -1,0 +1,19 @@
+<Project>
+  <ItemDefinitionGroup Condition="'$(LDGMDisableCompilerBatching)' == 'true'">
+    <ClCompile>
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup Condition="'$(LDGMDisableCompilerBatching)' == 'true'">
+    <!--
+      MSBuild can still pass every source file to one cl.exe process when /MP is
+      disabled. A harmless, per-file definition gives each compile item a unique
+      command line, which forces separate compiler invocations and bounds memory.
+    -->
+    <ClCompile Update="@(ClCompile)">
+      <PreprocessorDefinitions>LDGM_SINGLE_FILE_%(Filename);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- MSVC 19.44 crashes while optimizing this Eigen-heavy Chrono FEA unit. -->
+      <Optimization Condition="'%(Filename)' == 'ChElementHexaANCF_3813'">Disabled</Optimization>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -23,6 +23,25 @@ python tools/validate_test_goals.py
 
 The validator checks every tranche document against the recovered JSON Schema, verifies manifest ordering and dependencies, rejects duplicate goal IDs, and confirms the expected total of 37 goals.
 
+## Windows development bootstrap
+
+The checked-in scripts assume no global engine or CMake registration. From PowerShell at the repository root:
+
+```powershell
+.\scripts\bootstrap-machine.ps1
+.\scripts\bootstrap-dependencies.ps1
+.\scripts\preflight.ps1
+.\scripts\build-chrono.ps1
+.\scripts\test-chrono.ps1
+.\scripts\configure-project.ps1
+.\scripts\build-project.ps1
+.\scripts\process-assets.ps1
+```
+
+External source, build and install trees are placed beside the repository under `LDGM-deps` by default and are not committed. The default Windows build uses one MSBuild project and one isolated MSVC translation unit at a time because MSVC 19.44 is unstable on the large O3DE and Chrono source sets when compiler batching is enabled.
+
+See [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) for the current stage, verified evidence and next checkpoint.
+
 ## Product constraints at a glance
 
 - First-person driving only.

@@ -4,9 +4,9 @@ Last updated: 2026-07-14
 
 ## Current stage
 
-**Project Chrono dependency build — in progress**
+**O3DE–Chrono Gem linkage — in progress**
 
-The recovered specification and T0–T8 acceptance contracts are present and valid. The empty O3DE client and server launchers build and remain running against a processed PC asset catalog. Runtime integration has not yet begun; the next foundation checkpoint is a minimal Project Chrono Core/Vehicle build and link smoke test.
+The recovered specification and T0–T8 acceptance contracts are present and valid. The empty O3DE client and server launchers build and remain running against a processed PC asset catalog. The pinned Project Chrono Core/Vehicle package now builds, installs and passes a standalone dynamics smoke test; the active foundation checkpoint is linking that package only through `LDMChronoVehicle`.
 
 ## Stage ledger
 
@@ -19,7 +19,8 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | O3DE project configuration | Complete | Visual Studio 2022 generator at `build/windows`; generated files ignored |
 | Empty O3DE client/server build | Complete | Profile `LDGM.GameLauncher.exe` and `LDGM.ServerLauncher.exe` linked successfully |
 | Empty-project asset processing | Complete | 1,496 assets processed in the initial pass, 0 failed; incremental pass completed with 0 warnings/errors |
-| Project Chrono build | In progress | Pending minimal Core/Vehicle configuration and dependency pinning |
+| Project Chrono build | Complete | Eigen 5.0.0 plus Chrono Core/Vehicle and required model export closure installed as static RelWithDebInfo libraries |
+| Standalone Chrono consumer smoke | Complete | Installed-package `find_package(Chrono COMPONENTS Vehicle)`; 120 dynamics steps; 1/1 CTest passed |
 | O3DE project and Gem scaffolding | Complete | Minimal project Gem plus Windows-only `LDMChronoVehicle` Gem |
 | T0 integration implementation | Not started | Pending |
 | T0 acceptance gate | Not started | `test_goals/t0_integration_spike.json` |
@@ -51,13 +52,20 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 - Built `AssetProcessorBatch.exe` and added a reproducible PC asset-processing script with explicit project and source-engine paths, avoiding any reliance on global O3DE registration.
 - Completed the initial asset pass with 1,496 successful assets and 0 failed assets, then verified the scripted incremental pass with 0 warnings and 0 errors.
 - Repeated the headless startup probes after asset processing; both GameLauncher and ServerLauncher remained running for the full 15-second interval.
+- Locked Eigen 5.0.0 at commit `549bf8c75b6aae071cde2f28aa48f16ee3ae60b0`, bootstrapped it beside the engine sources and installed its headers without optional tests, BLAS, LAPACK, demos or documentation probes.
+- Built Project Chrono 10.0.0 as static RelWithDebInfo libraries using the dynamic MSVC runtime required by O3DE.
+- Added a checked-in MSBuild override that bounds compiler memory by giving each translation unit a distinct command line when single-compiler mode is selected; this avoids MSVC 19.44's unstable long-lived compiler batching without editing either upstream checkout.
+- Scoped an MSVC 19.44 optimizer workaround to Chrono's `ChElementHexaANCF_3813.cpp`; all other Chrono sources retain the requested RelWithDebInfo optimization.
+- Built and installed `Chrono_core`, `Chrono_vehicle`, and Chrono 10's required `ChronoModels_robot` and `ChronoModels_vehicle` export closure. Chrono's installed `Vehicle` component requires both model targets even when a consumer only uses base Vehicle symbols.
+- Normalized the configured Eigen path to CMake-style forward slashes after the standalone consumer caught invalid Windows escape sequences in the generated `ChronoConfig.cmake`.
+- Added and passed a standalone installed-package test that links the supported Vehicle target set, selects the Vehicle Y-up frame, advances a Core NSC system for 120 fixed steps, and validates elapsed simulation time and falling-body height.
 
 ## Next checkpoint
 
-1. Resolve and lock Chrono's required Eigen dependency from the pinned Chrono build helpers.
-2. Configure and build static Project Chrono Core/Vehicle libraries with the matching MSVC runtime.
-3. Run a standalone Chrono construction/step smoke test.
-4. Link a minimal Chrono smoke component through `LDMChronoVehicle` only.
+1. Teach `LDMChronoVehicle` to discover the installed Chrono package and own all Chrono includes and link dependencies.
+2. Add a minimal O3DE system component that constructs and steps a Chrono system without exposing Chrono types across the Gem boundary.
+3. Rebuild the Profile client/server launchers and run the bounded headless probes.
+4. Record the T0 integration evidence before beginning registry and deterministic fixed-step work.
 
 ## Working rules
 

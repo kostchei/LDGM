@@ -57,12 +57,14 @@ function Get-LockedSource {
 
 New-Item -ItemType Directory -Path $DependencyRoot -Force | Out-Null
 Get-LockedSource -Dependency $lock.source_dependencies.o3de -Root $DependencyRoot
+Get-LockedSource -Dependency $lock.source_dependencies.eigen -Root $DependencyRoot
 Get-LockedSource -Dependency $lock.source_dependencies.project_chrono -Root $DependencyRoot
 
 $state = [ordered]@{
     created_utc = [DateTime]::UtcNow.ToString("o")
     dependency_root = (Resolve-Path $DependencyRoot).Path
     o3de_commit = $lock.source_dependencies.o3de.commit
+    eigen_commit = $lock.source_dependencies.eigen.commit
     chrono_commit = $lock.source_dependencies.project_chrono.commit
 }
 $stateDir = Join-Path $repoRoot ".bootstrap"

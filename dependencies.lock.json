@@ -20,6 +20,12 @@
       "commit": "3db6943249d8bd7960b9ed7e9aee310b7668586e",
       "checkout_directory": "o3de"
     },
+    "eigen": {
+      "repository": "https://gitlab.com/libeigen/eigen.git",
+      "tag": "5.0.0",
+      "commit": "549bf8c75b6aae071cde2f28aa48f16ee3ae60b0",
+      "checkout_directory": "eigen"
+    },
     "project_chrono": {
       "repository": "https://github.com/projectchrono/chrono.git",
       "tag": "10.0.0",
@@ -29,7 +35,9 @@
       "sparse_paths": [
         "cmake",
         "src",
-        "contrib/build-scripts/windows"
+        "contrib/build-scripts/windows",
+        "data",
+        "template_project"
       ]
     }
   }

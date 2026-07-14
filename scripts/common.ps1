@@ -13,9 +13,10 @@ function Get-LDGMEnvironment {
     $cmakeRoot = Join-Path $env:LOCALAPPDATA "LDGM\tools\$($lock.windows_toolchain.cmake_portable_directory)"
     $cmake = Join-Path $cmakeRoot "bin\cmake.exe"
     $o3de = Join-Path $dependencyRoot $lock.source_dependencies.o3de.checkout_directory
+    $eigen = Join-Path $dependencyRoot $lock.source_dependencies.eigen.checkout_directory
     $chrono = Join-Path $dependencyRoot $lock.source_dependencies.project_chrono.checkout_directory
 
-    foreach ($requiredPath in @($cmake, $o3de, $chrono)) {
+    foreach ($requiredPath in @($cmake, $o3de, $eigen, $chrono)) {
         if (-not (Test-Path -LiteralPath $requiredPath)) {
             throw "Required bootstrap path is missing: $requiredPath"
         }
@@ -25,6 +26,7 @@ function Get-LDGMEnvironment {
         RepoRoot = $repoRoot
         DependencyRoot = $dependencyRoot
         O3DE = $o3de
+        Eigen = $eigen
         Chrono = $chrono
         O3DEPackages = (Join-Path $dependencyRoot "o3de-packages")
         CMakeRoot = $cmakeRoot
