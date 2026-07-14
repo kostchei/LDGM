@@ -4,7 +4,7 @@ Last updated: 2026-07-14
 
 ## Current stage
 
-**O3DE project scaffolding — in progress**
+**Empty O3DE launcher build — in progress**
 
 The recovered specification and T0–T8 acceptance contracts are present and valid. Runtime implementation has not yet begun. Work is proceeding sequentially toward the T0 exit gate.
 
@@ -16,8 +16,10 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | Windows toolchain definition and installation | Complete | VS 2022 17.14.37411.7; MSVC 19.44.35228 x64; Windows SDK 10.0.26100.0; CMake 4.2.3 |
 | O3DE 26.05.0 source checkout | Complete | Clean checkout at `3db6943249d8bd7960b9ed7e9aee310b7668586e` |
 | Project Chrono 10.0.0 source checkout | Complete | Clean sparse checkout at `9faf13dd8f1128dd75ed233a9627027b0422c3f7` |
-| O3DE and Project Chrono builds | Not started | Pending project/dependency configuration |
-| O3DE project and Gem scaffolding | In progress | Pending |
+| O3DE project configuration | Complete | Visual Studio 2022 generator at `build/windows`; generated files ignored |
+| Empty O3DE client/server build | In progress | Configuration passed; compilation pending |
+| Project Chrono build | Not started | Pending minimal Core/Vehicle configuration |
+| O3DE project and Gem scaffolding | Complete | Minimal project Gem plus Windows-only `LDMChronoVehicle` Gem |
 | T0 integration implementation | Not started | Pending |
 | T0 acceptance gate | Not started | `test_goals/t0_integration_spike.json` |
 | T1–T7 | Not started | Must follow preceding tranche gates |
@@ -37,13 +39,17 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 - Narrowed the Chrono checkout to build files, source and Windows helpers after the initial partial-clone checkout attempted to fetch thousands of unrelated data blobs without progress.
 - Correctly distinguished Chrono's annotated tag object from its dereferenced source commit; the dependency verifier rejected the tag-object mismatch before the lock was corrected.
 - Re-ran the dependency bootstrap successfully and verified both external worktrees are clean and exactly match their locked commits.
+- Bootstrapped O3DE's pinned Python 3.10.13 environment after one transient CDN DNS failure.
+- Generated the O3DE MinimalProject scaffold and the dedicated `LDMChronoVehicle` code Gem using O3DE's own templates.
+- Restricted the project and custom Gems to O3DE 2.6.0 compatibility and replaced all generated placeholder metadata.
+- Configured the project successfully with CMake 4.2.3, Visual Studio 2022, MSVC 19.44.35228 and Windows SDK 10.0.26100.0.
 
 ## Next checkpoint
 
-1. Scaffold the O3DE project and initial Gem boundaries.
-2. Register the project against the locked source engine using only a local user override.
-3. Configure the first project build without yet introducing gameplay systems.
-4. Build the empty GameLauncher and ServerLauncher targets before linking Chrono.
+1. Build the empty GameLauncher and ServerLauncher targets before linking Chrono.
+2. Run both launchers as smoke tests and capture any missing-asset behavior.
+3. Configure a static Project Chrono Core/Vehicle build with the matching MSVC runtime.
+4. Link a minimal Chrono smoke component through `LDMChronoVehicle` only.
 
 ## Working rules
 

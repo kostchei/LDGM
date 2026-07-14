@@ -1,0 +1,31 @@
+{
+    "gem_name": "LDMChronoVehicle",
+    "version": "1.0.0",
+    "display_name": "LDGM Chrono Vehicle Bridge",
+    "license": "UNLICENSED",
+    "license_url": "",
+    "origin": "LDGM",
+    "origin_url": "",
+    "type": "Code",
+    "summary": "Narrow authoritative whole-vehicle simulation bridge between O3DE and Project Chrono.",
+    "canonical_tags": [
+        "Gem"
+    ],
+    "user_tags": [
+        "LDMChronoVehicle"
+    ],
+    "platforms": [
+        "Windows"
+    ],
+    "icon_path": "preview.png",
+    "requirements": "Project Chrono 10.0.0 and O3DE 2.6.0",
+    "documentation_url": "",
+    "dependencies": [
+    ],
+    "repo_uri": "",
+    "compatible_engines": [
+        "o3de==2.6.0"
+    ],
+    "engine_api_dependencies":[
+    ]
+}

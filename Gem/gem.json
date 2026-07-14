@@ -1,0 +1,30 @@
+{
+    "gem_name": "LDGM",
+    "version": "1.0.0",
+    "display_name": "LDGM",
+    "license": "UNLICENSED",
+    "license_url": "",
+    "origin": "LDGM",
+    "origin_url": "",
+    "type": "Code",
+    "summary": "Shared LDGM gameplay state and presentation components.",
+    "canonical_tags": [
+        "Gem"
+    ],
+    "user_tags": [
+        "LDGM"
+    ],
+    "platforms": [
+        "Windows"
+    ],
+    "icon_path": "preview.png",
+    "requirements": "O3DE 2.6.0",
+    "documentation_url": "",
+    "dependencies": [
+    ],
+    "compatible_engines": [
+        "o3de==2.6.0"
+    ],
+    "engine_api_dependencies":[
+    ]
+}

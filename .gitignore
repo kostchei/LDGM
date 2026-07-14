@@ -1,9 +1,11 @@
 # O3DE and native build output
-build/
-Bin*/
-Cache/
+[Bb]uild/
+[Bb]in*/
+[Cc]ache/
+[Uu]ser/
 AssetProcessorTemp/
-user/
+_savebackup/
+CMakeUserPresets.json
 
 # IDE and operating-system files
 .idea/

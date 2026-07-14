@@ -1,0 +1,31 @@
+{
+    "project_name": "LDGM",
+    "version": "1.0.0",
+    "project_id": "{FD56C8A2-C701-4BF5-886E-1DC2B945D9F3}",
+    "origin": "LDGM",
+    "license": "UNLICENSED",
+    "display_name": "LDGM",
+    "summary": "First-person vehicular combat game built with O3DE and Project Chrono.",
+    "canonical_tags": [
+        "Project"
+    ],
+    "user_tags": [
+        "LDGM"
+    ],
+    "icon_path": "preview.png",
+    "engine": "o3de",
+    "external_subdirectories": [
+        "Gem",
+        "Gems/LDMChronoVehicle"
+    ],
+    "gem_names": [
+        "LDGM",
+        "LDMChronoVehicle",
+        "Atom",
+        "CameraFramework",
+        "ImGui"
+    ],
+    "compatible_engines": [
+        "o3de==2.6.0"
+    ]
+}
