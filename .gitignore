@@ -6,6 +6,7 @@
 AssetProcessorTemp/
 _savebackup/
 CMakeUserPresets.json
+imgui.ini
 
 # IDE and operating-system files
 .idea/
