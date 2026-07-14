@@ -15,7 +15,7 @@ Use O3DE as a project-centric source engine checked out outside this repository.
 - O3DE 26.05.0 / tag `2605.0` / commit `3db6943249d8bd7960b9ed7e9aee310b7668586e`.
 - Project Chrono 10.0.0 / tag `10.0.0` / commit `94fc98ae6f7f2bdcaf4ea8d34ee0892409ac9810`.
 
-Use Visual Studio 2022 x64 and CMake 4.2.3 on Windows. The exact installed compiler and Windows SDK versions must be captured in build evidence.
+Use Visual Studio 2022 x64 and CMake 4.2.3 on Windows. CMake is installed from Kitware's SHA-256-verified portable release archive so it does not require elevation or depend on a mutable system `PATH`. The exact installed compiler and Windows SDK versions must be captured in build evidence.
 
 Dependencies are stored in a configurable external directory rather than vendored into the game repository. Bootstrap refuses to use a checkout whose `HEAD` differs from the lock.
 

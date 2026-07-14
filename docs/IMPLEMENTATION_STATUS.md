@@ -4,7 +4,7 @@ Last updated: 2026-07-14
 
 ## Current stage
 
-**Foundation bootstrap — in progress**
+**Pinned dependency source bootstrap — in progress**
 
 The recovered specification and T0–T8 acceptance contracts are present and valid. Runtime implementation has not yet begun. Work is proceeding sequentially toward the T0 exit gate.
 
@@ -13,7 +13,7 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | Stage | Status | Evidence |
 |---|---|---|
 | Repository recovery and contract validation | Complete | `validation_report.txt`; 37 unique goals validated |
-| Windows toolchain definition | In progress | `.vsconfig`, `dependencies.lock.json`, bootstrap scripts |
+| Windows toolchain definition and installation | Complete | VS 2022 17.14.37411.7; MSVC 19.44.35228 x64; Windows SDK 10.0.26100.0; CMake 4.2.3 |
 | O3DE 26.05.0 source checkout/build | Not started | Pending |
 | Project Chrono 10.0.0 checkout/build | Not started | Pending |
 | O3DE project and Gem scaffolding | Not started | Pending |
@@ -29,13 +29,16 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 - Selected a project-centric O3DE source-engine workflow for reproducible client, server and release builds.
 - Resolved immutable release commits for O3DE 26.05.0 and Project Chrono 10.0.0.
 - Defined the required Visual Studio 2022 workloads and the pinned CMake version.
+- Installed Visual Studio Community 2022 with the checked-in C++ workloads.
+- Replaced the elevation-dependent CMake MSI path with Kitware's SHA-256-verified portable CMake 4.2.3 archive.
+- Passed the Windows preflight with Visual Studio 17.14.37411.7, MSVC 19.44.35228 x64, Windows SDK 10.0.26100.0 and CMake 4.2.3.
 
 ## Next checkpoint
 
-1. Verify the bootstrap scripts on the current Windows machine.
-2. Install Visual Studio 2022 and CMake 4.2.3 if missing.
-3. Fetch the exact O3DE and Chrono source commits outside the repository.
-4. Record detected compiler, SDK and dependency versions before configuring builds.
+1. Fetch the exact O3DE and Chrono source commits outside the repository.
+2. Verify both checkout heads against `dependencies.lock.json`.
+3. Scaffold the O3DE project and initial Gem boundaries.
+4. Configure the first project build without yet introducing gameplay systems.
 
 ## Working rules
 

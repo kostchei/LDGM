@@ -31,20 +31,40 @@ if (-not $winget) {
 
 $vsConfig = Join-Path $repoRoot $lock.windows_toolchain.visual_studio_config
 $vsProduct = $lock.windows_toolchain.visual_studio_product
-if ($PSCmdlet.ShouldProcess($vsProduct, "Install Visual Studio with $vsConfig")) {
+if (-not $preflight.visual_studio.found -and $PSCmdlet.ShouldProcess($vsProduct, "Install Visual Studio with $vsConfig")) {
     & winget install --id $vsProduct --exact --source winget --accept-package-agreements --accept-source-agreements --override "--wait --passive --norestart --config `"$vsConfig`""
     if ($LASTEXITCODE -ne 0) {
         throw "Visual Studio installation failed with exit code $LASTEXITCODE."
     }
 }
 
-$cmakeProduct = $lock.windows_toolchain.cmake_product
 $cmakeVersion = $lock.windows_toolchain.cmake_version
-if ($PSCmdlet.ShouldProcess("$cmakeProduct $cmakeVersion", "Install CMake")) {
-    & winget install --id $cmakeProduct --exact --version $cmakeVersion --source winget --accept-package-agreements --accept-source-agreements --silent
-    if ($LASTEXITCODE -ne 0) {
-        throw "CMake installation failed with exit code $LASTEXITCODE."
+$cmakeDirectory = $lock.windows_toolchain.cmake_portable_directory
+$toolsRoot = Join-Path $env:LOCALAPPDATA "LDGM\tools"
+$cmakeRoot = Join-Path $toolsRoot $cmakeDirectory
+$cmakeExecutable = Join-Path $cmakeRoot "bin\cmake.exe"
+if (-not (Test-Path -LiteralPath $cmakeExecutable) -and $PSCmdlet.ShouldProcess("CMake $cmakeVersion", "Install pinned portable archive")) {
+    $downloadRoot = Join-Path $repoRoot ".bootstrap\downloads"
+    $archivePath = Join-Path $downloadRoot "$cmakeDirectory.zip"
+    New-Item -ItemType Directory -Path $downloadRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path $toolsRoot -Force | Out-Null
+
+    Write-Host "Downloading portable CMake $cmakeVersion"
+    Invoke-WebRequest -UseBasicParsing -Uri $lock.windows_toolchain.cmake_portable_archive -OutFile $archivePath
+    $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archivePath).Hash.ToLowerInvariant()
+    if ($actualHash -ne $lock.windows_toolchain.cmake_portable_sha256) {
+        throw "CMake archive hash mismatch: expected $($lock.windows_toolchain.cmake_portable_sha256), got $actualHash."
+    }
+
+    Expand-Archive -LiteralPath $archivePath -DestinationPath $toolsRoot -Force
+    if (-not (Test-Path -LiteralPath $cmakeExecutable)) {
+        throw "Portable CMake installation did not create $cmakeExecutable."
     }
 }
 
-Write-Host "Installation commands completed. Open a new PowerShell session and run scripts/preflight.ps1."
+$finalPreflight = & (Join-Path $PSScriptRoot "preflight.ps1") -PassThru
+if (-not $finalPreflight.ready) {
+    throw "Installation commands completed but the machine still fails preflight."
+}
+
+Write-Host "Machine bootstrap complete."

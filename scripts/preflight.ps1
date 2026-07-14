@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $lockPath = Join-Path $repoRoot "dependencies.lock.json"
 $lock = Get-Content -Raw -LiteralPath $lockPath | ConvertFrom-Json
+$portableCmake = Join-Path $env:LOCALAPPDATA "LDGM\tools\$($lock.windows_toolchain.cmake_portable_directory)\bin\cmake.exe"
 
 function Resolve-CommandVersion {
     param(
@@ -60,7 +61,7 @@ $result = [ordered]@{
     git = Resolve-CommandVersion -Name "git" -VersionArguments @("--version")
     git_lfs = Resolve-CommandVersion -Name "git-lfs" -VersionArguments @("version")
     winget = Resolve-CommandVersion -Name "winget" -VersionArguments @("--version")
-    cmake = Resolve-CommandVersion -Name "cmake" -VersionArguments @("--version")
+    cmake = Resolve-CommandVersion -Name $(if (Test-Path -LiteralPath $portableCmake) { $portableCmake } else { "cmake" }) -VersionArguments @("--version")
     visual_studio = $visualStudio
     requirements = [ordered]@{
         cmake_version = $lock.windows_toolchain.cmake_version
@@ -73,6 +74,7 @@ $result.ready = (
     $result.git.found -and
     $result.git_lfs.found -and
     $result.cmake.found -and
+    $result.cmake.version -eq "cmake version $($lock.windows_toolchain.cmake_version)" -and
     $result.visual_studio.found -and
     $result.disk_free_gb -ge $result.requirements.minimum_free_disk_gb
 )
@@ -96,3 +98,5 @@ if ($PassThru) {
 if (-not $result.ready) {
     exit 2
 }
+
+exit 0

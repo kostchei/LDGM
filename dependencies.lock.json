@@ -8,6 +8,9 @@
     "visual_studio_config": ".vsconfig",
     "cmake_product": "Kitware.CMake",
     "cmake_version": "4.2.3",
+    "cmake_portable_archive": "https://github.com/Kitware/CMake/releases/download/v4.2.3/cmake-4.2.3-windows-x86_64.zip",
+    "cmake_portable_sha256": "eb4ebf5155dbb05436d675706b2a08189430df58904257ae5e91bcba4c86933c",
+    "cmake_portable_directory": "cmake-4.2.3-windows-x86_64",
     "windows_sdk_minimum": "10.0.19041.0"
   },
   "source_dependencies": {
