@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "generated_utc": "2026-07-14T00:00:00Z",
+  "windows_toolchain": {
+    "architecture": "x64",
+    "visual_studio_product": "Microsoft.VisualStudio.2022.Community",
+    "visual_studio_major_version": 17,
+    "visual_studio_config": ".vsconfig",
+    "cmake_product": "Kitware.CMake",
+    "cmake_version": "4.2.3",
+    "windows_sdk_minimum": "10.0.19041.0"
+  },
+  "source_dependencies": {
+    "o3de": {
+      "repository": "https://github.com/o3de/o3de.git",
+      "tag": "2605.0",
+      "commit": "3db6943249d8bd7960b9ed7e9aee310b7668586e",
+      "checkout_directory": "o3de"
+    },
+    "project_chrono": {
+      "repository": "https://github.com/projectchrono/chrono.git",
+      "tag": "10.0.0",
+      "commit": "94fc98ae6f7f2bdcaf4ea8d34ee0892409ac9810",
+      "checkout_directory": "chrono"
+    }
+  }
+}

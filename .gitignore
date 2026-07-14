@@ -17,3 +17,11 @@ Thumbs.db
 __pycache__/
 *.pyc
 
+# Local dependency/build bootstrap state
+.bootstrap/
+dependencies/
+install/
+
+# Generated test and telemetry evidence
+test_results/
+telemetry/
