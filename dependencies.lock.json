@@ -23,8 +23,14 @@
     "project_chrono": {
       "repository": "https://github.com/projectchrono/chrono.git",
       "tag": "10.0.0",
-      "commit": "94fc98ae6f7f2bdcaf4ea8d34ee0892409ac9810",
-      "checkout_directory": "chrono"
+      "tag_object": "94fc98ae6f7f2bdcaf4ea8d34ee0892409ac9810",
+      "commit": "9faf13dd8f1128dd75ed233a9627027b0422c3f7",
+      "checkout_directory": "chrono",
+      "sparse_paths": [
+        "cmake",
+        "src",
+        "contrib/build-scripts/windows"
+      ]
     }
   }
 }

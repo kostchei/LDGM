@@ -30,6 +30,18 @@ function Get-LockedSource {
     if ($LASTEXITCODE -ne 0) {
         throw "Fetch failed for $($Dependency.repository) at $($Dependency.commit)."
     }
+
+    if ($Dependency.PSObject.Properties.Name -contains "sparse_paths") {
+        & git -C $destination sparse-checkout init --cone
+        if ($LASTEXITCODE -ne 0) {
+            throw "Sparse-checkout initialization failed for $($Dependency.repository)."
+        }
+        & git -C $destination sparse-checkout set @($Dependency.sparse_paths)
+        if ($LASTEXITCODE -ne 0) {
+            throw "Sparse-checkout configuration failed for $($Dependency.repository)."
+        }
+    }
+
     & git -C $destination checkout --detach $Dependency.commit
     if ($LASTEXITCODE -ne 0) {
         throw "Checkout failed for $($Dependency.repository) at $($Dependency.commit)."
