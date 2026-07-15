@@ -226,6 +226,10 @@ if(PAL_TRAIT_BUILD_TESTS_SUPPORTED)
                     AZ::AzTest
                     AZ::AzFramework
                     Gem::${gem_name}.Private.Object
+                    # The conversion-boundary tests include Chrono headers;
+                    # Chrono stays private to this Gem and its tests.
+                    Chrono::Chrono_core
+                    Chrono::Chrono_vehicle
         )
 
         # Add ${gem_name}.Tests to googletest

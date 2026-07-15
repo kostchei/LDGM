@@ -24,8 +24,9 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | O3DE project and Gem scaffolding | Complete | Minimal project Gem plus Windows-only `LDMChronoVehicle` Gem |
 | O3DE–Chrono Gem linkage | Complete | Private imported targets; Profile client/server link; both 15-second launcher probes log the lifecycle smoke result |
 | T0 fixed-step and active registry primitives | Complete | 6 GoogleTests pass; bounded catch-up and dropped-time reporting; 30 accepted, 31st rejected, release idempotent |
-| T0 authoritative runtime adapter | Complete | Server-only 5 ms fixed stepping; eight-step catch-up bound; public plain-data telemetry and capacity API; 6/6 GoogleTests; both launcher probes logged the correct role (client-linkage / authoritative) |
-| T0 integration implementation | In progress | Build/link, runtime ownership and core primitives complete; coordinate/terrain sync and cockpit camera evidence pending |
+| T0 authoritative runtime adapter | Complete | Server-only 5 ms fixed stepping; eight-step catch-up bound; public plain-data telemetry and capacity API; both launcher probes logged the correct role (client-linkage / authoritative) |
+| T0 coordinate conversion boundary | Complete | Shared right-handed Z-up frame (Chrono default ISO); component-wise pose/vector/quaternion conversion in `Simulation/CoordinateConversion`; 12/12 GoogleTests including cross-engine rotation agreement |
+| T0 integration implementation | In progress | Build/link, runtime ownership, core primitives and coordinate boundary complete; shared terrain, generic vehicle and cockpit camera evidence pending |
 | T0 acceptance gate | Not started | `test_goals/t0_integration_spike.json` |
 | T1–T7 | Not started | Must follow preceding tranche gates |
 
@@ -78,12 +79,14 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 - Replaced the silent non-authoritative default in launcher role detection with a fatal error when neither `sv_isDedicated` nor the build-target settings key is available.
 - Verified the authoritative adapter: 6/6 Gem GoogleTests pass, both launchers rebuilt with embedded `/Z7` debug information, and both bounded runtime probes logged the lifecycle smoke with the correct role.
 - Observed two isolated `cl.exe` crashes (`0xC000001D`, `0xC0000005`) during the `/Z7` framework recompile; retries completed without recurrence and no crash repeated at the same translation unit.
+- Replaced the provisional Chrono Y-up world frame with Chrono's default ISO Z-up frame so both engines share a right-handed Z-up convention; the adapter now asserts the ISO frame at startup (ADR 0002 amendment).
+- Added the private `Simulation/CoordinateConversion` boundary for vectors, quaternions and rigid poses with finite/unit-length/unit-scale enforcement, plus 6 GoogleTests covering round trips, cross-engine rotation agreement and Chrono-height-to-Z mapping (12 Gem tests total).
 
 ## Next checkpoint
 
-1. Decide the shared world frame (Chrono default Z-up ISO versus the current `SetYUP()` call) and record it in an ADR 0002 amendment before conversion code is written.
-2. Define and test the O3DE/Chrono axis, pose and velocity conversion boundary.
-3. Add the generic vehicle and shared-terrain fixture needed for T0 transform and terrain-alignment evidence.
+1. Add the shared-terrain fixture derived from one versioned source with a checksum consumed by both Chrono and O3DE.
+2. Add the generic Chrono vehicle driven by a scripted input sequence and capture Chrono-versus-proxy transform traces for T0-PHYS-002.
+3. Attach the first-person cockpit camera to the vehicle proxy and produce the input-action inventory for T0-CAM-003.
 
 ## Working rules
 

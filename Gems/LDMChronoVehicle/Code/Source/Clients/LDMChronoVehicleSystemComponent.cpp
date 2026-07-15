@@ -65,13 +65,16 @@ namespace LDMChronoVehicle
             m_telemetry.m_isAuthoritative = true;
             m_telemetry.m_fixedStepSeconds = FixedStepSeconds;
 
-            chrono::vehicle::ChWorldFrame::SetYUP();
+            // O3DE and Chrono's default ISO world frame are both right-handed
+            // Z-up, so poses cross the boundary without an axis permutation.
+            AZ_Assert(chrono::vehicle::ChWorldFrame::IsISO(),
+                "The Chrono world frame must remain the default ISO Z-up frame.");
             m_system.SetGravitationalAcceleration(-9.81 * chrono::vehicle::ChWorldFrame::Vertical());
 
             m_probeBody = std::make_shared<chrono::ChBody>();
             m_probeBody->SetMass(1.0);
             m_probeBody->SetInertiaXX(chrono::ChVector3d(1.0, 1.0, 1.0));
-            m_probeBody->SetPos(chrono::ChVector3d(0.0, 2.0, 0.0));
+            m_probeBody->SetPos(chrono::ChVector3d(0.0, 0.0, 2.0));
             m_system.AddBody(m_probeBody);
         }
 

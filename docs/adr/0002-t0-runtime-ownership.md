@@ -19,7 +19,9 @@ The specification assigns whole-vehicle motion, wheel contact, traction, suspens
 - Terrain used by Chrono and rendered by O3DE must be derived from the same versioned source data and checksum.
 - Active-vehicle capacity is reserved by the authority before a Chrono vehicle is created. Capacity is released idempotently after destruction or deactivation.
 
-The T0 adapter uses a provisional 5 ms fixed step and executes no more than eight catch-up steps per O3DE tick. Whole overdue steps beyond that ceiling are dropped and reported in telemetry rather than allowing an unbounded spiral. The exact axis conversion, production substep policy and snapshot rate remain provisional until measured during T0.
+The T0 adapter uses a provisional 5 ms fixed step and executes no more than eight catch-up steps per O3DE tick. Whole overdue steps beyond that ceiling are dropped and reported in telemetry rather than allowing an unbounded spiral. The production substep policy and snapshot rate remain provisional until measured during T0.
+
+O3DE and Chrono share a right-handed Z-up world frame in meters: Chrono stays on its default ISO vehicle world frame rather than the earlier provisional Y-up selection, so the pose boundary is a component-wise mapping (float/double width and quaternion storage order only, no axis permutation). The adapter asserts the ISO frame at startup, and the conversion functions live in the Gem's private `Simulation/CoordinateConversion` boundary with unit tests.
 
 ## Consequences
 
