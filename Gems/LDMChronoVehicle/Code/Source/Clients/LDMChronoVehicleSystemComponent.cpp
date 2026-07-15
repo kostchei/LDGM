@@ -2,6 +2,7 @@
 #include "LDMChronoVehicleSystemComponent.h"
 
 #include <Clients/CockpitCameraComponent.h>
+#include <Clients/PoseSnapshots.h>
 #include <Clients/VehicleProxyComponent.h>
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
 #include <Simulation/ActiveVehicleRegistry.h>
@@ -10,6 +11,7 @@
 #include <Simulation/VehicleFixture.h>
 
 #include <AzCore/Component/Entity.h>
+#include <AzCore/Component/TransformBus.h>
 #include <AzFramework/Components/TransformComponent.h>
 
 #include <AzCore/Component/TickBus.h>
@@ -105,6 +107,7 @@ namespace LDMChronoVehicle
                 "Reserving the T0 fixture vehicle failed (result=%d).",
                 static_cast<int>(reservation));
             m_vehicleFixture = std::make_unique<VehicleFixture>(m_system, FixedStepSeconds);
+            m_snapshotPublisher = std::make_unique<PoseSnapshotPublisher>();
 
             m_telemetry.m_activeVehicleCount =
                 aznumeric_cast<AZ::u32>(m_activeVehicles.GetActiveCount());
@@ -115,10 +118,12 @@ namespace LDMChronoVehicle
         chrono::ChSystemNSC m_system;
         std::shared_ptr<chrono::ChBody> m_probeBody;
         std::unique_ptr<VehicleFixture> m_vehicleFixture;
+        std::unique_ptr<PoseSnapshotPublisher> m_snapshotPublisher;
         FixedStepClock m_clock;
         ActiveVehicleRegistry m_activeVehicles;
         SimulationTelemetry m_telemetry;
         double m_nextTraceTimeSeconds = 0.0;
+        double m_nextPublishSimTimeSeconds = 0.0;
     };
 
     AZ_COMPONENT_IMPL(LDMChronoVehicleSystemComponent, "LDMChronoVehicleSystemComponent",
@@ -218,6 +223,17 @@ namespace LDMChronoVehicle
             m_proxyEntity->Init();
             m_proxyEntity->Activate();
         }
+        else
+        {
+            // Client role: receive authoritative pose snapshots and drive a
+            // local proxy entity from them (T0 single-client deliverable).
+            m_snapshotReceiver = AZStd::make_unique<PoseSnapshotReceiver>();
+            m_clientProxyEntity = AZStd::make_unique<AZ::Entity>("T0ClientVehicleProxy");
+            m_clientProxyEntity->CreateComponent<AzFramework::TransformComponent>();
+            m_clientProxyEntity->Init();
+            m_clientProxyEntity->Activate();
+            AZ::TickBus::Handler::BusConnect();
+        }
     }
 
     void LDMChronoVehicleSystemComponent::Deactivate()
@@ -227,6 +243,12 @@ namespace LDMChronoVehicle
             m_proxyEntity->Deactivate();
             m_proxyEntity.reset();
         }
+        if (m_clientProxyEntity)
+        {
+            m_clientProxyEntity->Deactivate();
+            m_clientProxyEntity.reset();
+        }
+        m_snapshotReceiver.reset();
         AZ::TickBus::Handler::BusDisconnect();
         m_chronoState.reset();
         LDMChronoVehicleRequestBus::Handler::BusDisconnect();
@@ -288,6 +310,7 @@ namespace LDMChronoVehicle
     {
         if (!m_chronoState)
         {
+            OnClientTick();
             return;
         }
 
@@ -338,6 +361,53 @@ namespace LDMChronoVehicle
                     telemetry.m_vehicleSpeedMetersPerSecond,
                     telemetry.m_terrainChecksum);
             }
+
+            // T0 deliverable: authoritative snapshots to one client.
+            if (m_chronoState->m_snapshotPublisher &&
+                simulationTime >= m_chronoState->m_nextPublishSimTimeSeconds)
+            {
+                m_chronoState->m_nextPublishSimTimeSeconds =
+                    simulationTime + SnapshotConfig::PublishIntervalSeconds;
+                m_chronoState->m_snapshotPublisher->Publish(
+                    simulationTime,
+                    ChronoState::FixtureVehicleId,
+                    m_chronoState->m_vehicleFixture->GetChassisPose(),
+                    telemetry.m_terrainChecksum);
+            }
+        }
+    }
+
+    void LDMChronoVehicleSystemComponent::OnClientTick()
+    {
+        if (!m_snapshotReceiver || !m_clientProxyEntity)
+        {
+            return;
+        }
+
+        PoseSnapshotPacket packet;
+        if (!m_snapshotReceiver->ReceiveLatest(packet))
+        {
+            return;
+        }
+
+        const AZ::Transform pose = packet.GetPose();
+        AZ::TransformBus::Event(m_clientProxyEntity->GetId(),
+            &AZ::TransformBus::Events::SetWorldTM, pose);
+
+        if (packet.m_simulationTimeSeconds >= m_nextSnapshotTraceTimeSeconds)
+        {
+            m_nextSnapshotTraceTimeSeconds = packet.m_simulationTimeSeconds + 1.0;
+            const AZ::Vector3 position = pose.GetTranslation();
+            AZ_Printf("LDMChronoVehicle",
+                "T0 snapshot trace: t=%.3f pos=(%.3f, %.3f, %.3f) received=%llu rejected=%llu "
+                "terrain=0x%08X\n",
+                packet.m_simulationTimeSeconds,
+                static_cast<double>(position.GetX()),
+                static_cast<double>(position.GetY()),
+                static_cast<double>(position.GetZ()),
+                static_cast<unsigned long long>(m_snapshotReceiver->GetReceivedCount()),
+                static_cast<unsigned long long>(m_snapshotReceiver->GetRejectedCount()),
+                packet.m_terrainChecksum);
         }
     }
 

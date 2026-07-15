@@ -29,7 +29,8 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | T0 vehicle and shared-terrain fixture | Complete | Programmatic HMMWV on the versioned terrain patch (checksum-logged); scripted settle/ramp/drive; 14/14 GoogleTests; server probe logs per-second transform traces at real-time 200 Hz stepping |
 | T0 render proxy | Complete | `VehicleProxyComponent` entity consumes the authoritative pose after each simulation tick; probe log shows Chrono-versus-proxy error 0.000 m / max 0.040° against the 0.05 m / 1° gate |
 | T0 cockpit camera | Complete | Camera pose derived rigidly from the proxy each frame; probe log shows 0 invalid frames, max attachment error 1.7e-5 m; input inventory logs zero input-binding assets and zero external-camera actions |
-| T0 integration implementation | In progress | Chrono simulation, render proxy and cockpit camera complete; host-to-client snapshot evidence pending |
+| T0 host-to-client snapshots | Complete | Authoritative host publishes 20 Hz pose snapshots over loopback UDP; concurrent probe shows the client applying 218 snapshots with 0 rejects and the terrain checksum intact across the wire |
+| T0 integration implementation | Implementation complete | All T0 deliverables implemented headless; gate evaluation pending |
 | T0 acceptance gate | Not started | `test_goals/t0_integration_spike.json` |
 | T1–T7 | Not started | Must follow preceding tranche gates |
 
@@ -93,10 +94,12 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 
 - Added the `CockpitCameraComponent` on the proxy entity: rigid driver-eye offset, per-frame NaN and attachment-error telemetry, and a one-time input-action inventory proving no external driving camera action exists; the launcher probe now also requires the camera trace and input inventory in the server log.
 
+- Added the T0 spike snapshot channel (connected UDP over loopback, fixed ports, versioned trivially-copyable packet with finite-value validation): the authoritative host publishes 20 Hz chassis poses and the client applies them to its own proxy entity.
+- Rewrote the launcher probe to run both roles concurrently: the server must log its simulation, proxy, camera and inventory evidence while the client logs received snapshot traces (218 received, 0 rejected in the passing probe).
+
 ## Next checkpoint
 
-1. Add the headless host-to-client snapshot path required by the T0 deliverables (client receives authoritative vehicle poses and drives its own proxy/camera entities).
-2. Evaluate the T0 acceptance gate against `test_goals/t0_integration_spike.json` and record remaining evidence gaps (rendered driving capture, collision-input camera-shake case).
+1. Evaluate the T0 acceptance gate against `test_goals/t0_integration_spike.json`, assembling the machine-readable results and recording remaining evidence gaps (rendered driving capture, collision-input camera-shake case, 30-vehicle registry evidence at runtime).
 
 ## Working rules
 

@@ -6,6 +6,8 @@ set(FILES
     Source/Clients/CockpitCameraComponent.h
     Source/Clients/LDMChronoVehicleSystemComponent.cpp
     Source/Clients/LDMChronoVehicleSystemComponent.h
+    Source/Clients/PoseSnapshots.cpp
+    Source/Clients/PoseSnapshots.h
     Source/Clients/VehicleProxyComponent.cpp
     Source/Clients/VehicleProxyComponent.h
     Source/Simulation/ActiveVehicleRegistry.cpp

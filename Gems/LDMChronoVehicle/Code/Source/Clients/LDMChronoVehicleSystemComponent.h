@@ -15,6 +15,8 @@ namespace AZ
 
 namespace LDMChronoVehicle
 {
+    class PoseSnapshotReceiver;
+
     class LDMChronoVehicleSystemComponent
         : public AZ::Component
         , protected LDMChronoVehicleRequestBus::Handler
@@ -44,6 +46,7 @@ namespace LDMChronoVehicle
 
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
         int GetTickOrder() override;
+        void OnClientTick();
 
         ////////////////////////////////////////////////////////////////////////
         // AZ::Component interface implementation
@@ -56,6 +59,11 @@ namespace LDMChronoVehicle
         struct ChronoState;
         std::unique_ptr<ChronoState> m_chronoState;
         AZStd::unique_ptr<AZ::Entity> m_proxyEntity;
+
+        // Client role: consumes authoritative pose snapshots.
+        AZStd::unique_ptr<PoseSnapshotReceiver> m_snapshotReceiver;
+        AZStd::unique_ptr<AZ::Entity> m_clientProxyEntity;
+        double m_nextSnapshotTraceTimeSeconds = 0.0;
     };
 
 } // namespace LDMChronoVehicle

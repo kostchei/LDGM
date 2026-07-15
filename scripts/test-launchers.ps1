@@ -3,7 +3,7 @@ param(
     [ValidateSet("debug", "profile", "release")]
     [string]$Configuration = "profile",
     [ValidateRange(1, 60)]
-    [int]$ProbeSeconds = 15
+    [int]$ProbeSeconds = 20
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,69 +11,80 @@ $ErrorActionPreference = "Stop"
 $environment = Enter-LDGMEnvironment
 
 $launcherDirectory = Join-Path $environment.RepoRoot "build\windows\bin\$Configuration"
+
+# The server and client run concurrently: the authoritative host publishes
+# pose snapshots over loopback and the client must log that it received them.
 $launchers = @(
-    @{ Name = "LDGM.GameLauncher.exe"; Log = "Game.log"
-       Expected = @("role=client-linkage") },
     @{ Name = "LDGM.ServerLauncher.exe"; Log = "Server.log"
-       Expected = @("role=authoritative", "T0 transform trace", "T0 proxy trace",
-                    "T0 camera trace", "T0 input inventory") }
+       Expected = @("Chrono Core/Vehicle lifecycle smoke passed", "role=authoritative",
+                    "T0 transform trace", "T0 proxy trace",
+                    "T0 camera trace", "T0 input inventory") },
+    @{ Name = "LDGM.GameLauncher.exe"; Log = "Game.log"
+       Expected = @("Chrono Core/Vehicle lifecycle smoke passed", "role=client-linkage",
+                    "T0 snapshot trace") }
 )
 
-foreach ($launcher in $launchers) {
-    $launcherPath = Join-Path $launcherDirectory $launcher.Name
-    if (-not (Test-Path -LiteralPath $launcherPath)) {
-        throw "Launcher is not built: $launcherPath"
-    }
+$startedAt = Get-Date
+$processes = @()
+try {
+    foreach ($launcher in $launchers) {
+        $launcherPath = Join-Path $launcherDirectory $launcher.Name
+        if (-not (Test-Path -LiteralPath $launcherPath)) {
+            throw "Launcher is not built: $launcherPath"
+        }
 
-    $logPath = Join-Path $environment.RepoRoot "user\log\$($launcher.Log)"
-    $startedAt = Get-Date
-    $process = Start-Process -FilePath $launcherPath `
-        -ArgumentList @("--rhi=null", "-noprompt") `
-        -WorkingDirectory $environment.RepoRoot `
-        -WindowStyle Hidden `
-        -PassThru
+        $process = Start-Process -FilePath $launcherPath `
+            -ArgumentList @("--rhi=null", "-noprompt") `
+            -WorkingDirectory $environment.RepoRoot `
+            -WindowStyle Hidden `
+            -PassThru
+        $processes += @{ Launcher = $launcher; Process = $process; Satisfied = $false }
+    }
 
     $stopwatch = [Diagnostics.Stopwatch]::StartNew()
-    $smokeObserved = $false
-    try {
-        while ($stopwatch.Elapsed.TotalSeconds -lt $ProbeSeconds) {
-            $process.Refresh()
-            if ($process.HasExited) {
-                throw "$($launcher.Name) exited during the bounded probe with code $($process.ExitCode)."
+    while ($stopwatch.Elapsed.TotalSeconds -lt $ProbeSeconds) {
+        foreach ($entry in $processes) {
+            $entry.Process.Refresh()
+            if ($entry.Process.HasExited) {
+                throw "$($entry.Launcher.Name) exited during the bounded probe with code $($entry.Process.ExitCode)."
             }
 
-            if (-not $smokeObserved -and (Test-Path -LiteralPath $logPath)) {
-                $log = Get-Item -LiteralPath $logPath
-                if ($log.LastWriteTime -ge $startedAt) {
-                    $allObserved = Select-String -LiteralPath $logPath `
-                        -SimpleMatch "Chrono Core/Vehicle lifecycle smoke passed" `
-                        -Quiet
-                    foreach ($expected in $launcher.Expected) {
-                        if ($allObserved) {
-                            $allObserved = Select-String -LiteralPath $logPath `
-                                -SimpleMatch $expected `
-                                -Quiet
+            if (-not $entry.Satisfied) {
+                $logPath = Join-Path $environment.RepoRoot "user\log\$($entry.Launcher.Log)"
+                if (Test-Path -LiteralPath $logPath) {
+                    $log = Get-Item -LiteralPath $logPath
+                    if ($log.LastWriteTime -ge $startedAt) {
+                        $allObserved = $true
+                        foreach ($expected in $entry.Launcher.Expected) {
+                            if ($allObserved) {
+                                $allObserved = Select-String -LiteralPath $logPath `
+                                    -SimpleMatch $expected `
+                                    -Quiet
+                            }
                         }
+                        $entry.Satisfied = $allObserved
                     }
-                    $smokeObserved = $allObserved
                 }
             }
-
-            Start-Sleep -Milliseconds 250
         }
 
-        $expectedList = $launcher.Expected -join "', '"
-        if (-not $smokeObserved) {
-            throw "$($launcher.Name) remained alive but did not log all expected markers: '$expectedList'."
-        }
-
-        Write-Host "$($launcher.Name) remained alive for $ProbeSeconds seconds and logged '$expectedList'."
+        Start-Sleep -Milliseconds 250
     }
-    finally {
-        $process.Refresh()
-        if (-not $process.HasExited) {
-            Stop-Process -Id $process.Id
-            $process.WaitForExit()
+
+    foreach ($entry in $processes) {
+        $expectedList = $entry.Launcher.Expected -join "', '"
+        if (-not $entry.Satisfied) {
+            throw "$($entry.Launcher.Name) remained alive but did not log all expected markers: '$expectedList'."
+        }
+        Write-Host "$($entry.Launcher.Name) remained alive for $ProbeSeconds seconds and logged '$expectedList'."
+    }
+}
+finally {
+    foreach ($entry in $processes) {
+        $entry.Process.Refresh()
+        if (-not $entry.Process.HasExited) {
+            Stop-Process -Id $entry.Process.Id
+            $entry.Process.WaitForExit()
         }
     }
 }
