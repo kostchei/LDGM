@@ -6,7 +6,7 @@ Last updated: 2026-07-15
 
 **T0 runtime ownership and fixed-step foundation — in progress**
 
-The recovered specification and T0–T8 acceptance contracts are present and valid. The pinned O3DE client and server launchers build with Project Chrono linked privately through `LDMChronoVehicle`. Both roles remain alive during bounded runtime probes and log a successful Chrono lifecycle step. The active foundation checkpoint is the authoritative fixed-step adapter, capacity registry and coordinate boundary required by the rest of T0.
+The recovered specification and T0–T8 acceptance contracts are present and valid. The pinned O3DE client and server launchers build with Project Chrono linked privately through `LDMChronoVehicle`. Both roles remain alive during bounded runtime probes and log a successful Chrono lifecycle step. The active foundation checkpoint is the coordinate conversion and transform synchronization boundary required by the rest of T0.
 
 ## Stage ledger
 
@@ -24,7 +24,8 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | O3DE project and Gem scaffolding | Complete | Minimal project Gem plus Windows-only `LDMChronoVehicle` Gem |
 | O3DE–Chrono Gem linkage | Complete | Private imported targets; Profile client/server link; both 15-second launcher probes log the lifecycle smoke result |
 | T0 fixed-step and active registry primitives | Complete | 6 GoogleTests pass; bounded catch-up and dropped-time reporting; 30 accepted, 31st rejected, release idempotent |
-| T0 integration implementation | In progress | Build/link and core primitives complete; runtime ownership, coordinate/terrain sync and cockpit camera evidence pending |
+| T0 authoritative runtime adapter | Complete | Server-only 5 ms fixed stepping; eight-step catch-up bound; public plain-data telemetry and capacity API; 6/6 GoogleTests; both launcher probes logged the correct role (client-linkage / authoritative) |
+| T0 integration implementation | In progress | Build/link, runtime ownership and core primitives complete; coordinate/terrain sync and cockpit camera evidence pending |
 | T0 acceptance gate | Not started | `test_goals/t0_integration_spike.json` |
 | T1–T7 | Not started | Must follow preceding tranche gates |
 
@@ -71,13 +72,18 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 - Added a deterministic fixed-step accumulator with bounded catch-up, explicit dropped-time telemetry, fractional remainder preservation and invalid elapsed-time rejection.
 - Enabled the generated Gem's Windows client tests and added 6 passing GoogleTests for the registry and clock contracts.
 - Corrected the compiler-isolation definition so hyphenated sources such as `gtest-all.cc` receive a unique command line without creating an invalid preprocessor macro name.
+- Added a Chrono-free public Gem API for authoritative capacity reservation and simulation telemetry.
+- Restricted continuous Chrono stepping and the active-vehicle registry to the server launcher; the game client performs only the lifecycle linkage probe.
+- Integrated the fixed-step clock at a provisional 5 ms interval with an eight-step catch-up ceiling and wall-time, step-count, accumulator and dropped-time telemetry.
+- Replaced the silent non-authoritative default in launcher role detection with a fatal error when neither `sv_isDedicated` nor the build-target settings key is available.
+- Verified the authoritative adapter: 6/6 Gem GoogleTests pass, both launchers rebuilt with embedded `/Z7` debug information, and both bounded runtime probes logged the lifecycle smoke with the correct role.
+- Observed two isolated `cl.exe` crashes (`0xC000001D`, `0xC0000005`) during the `/Z7` framework recompile; retries completed without recurrence and no crash repeated at the same translation unit.
 
 ## Next checkpoint
 
-1. Integrate the fixed-step clock and active-vehicle registry into the Chrono-private authoritative simulation adapter.
-2. Publish step-count, step-time, dropped-time and active-count telemetry through the Gem boundary without exposing Chrono types.
-3. Define and test the O3DE/Chrono axis, pose and velocity conversion boundary.
-4. Add the generic vehicle and shared-terrain fixture needed for T0 transform and terrain-alignment evidence.
+1. Decide the shared world frame (Chrono default Z-up ISO versus the current `SetYUP()` call) and record it in an ADR 0002 amendment before conversion code is written.
+2. Define and test the O3DE/Chrono axis, pose and velocity conversion boundary.
+3. Add the generic vehicle and shared-terrain fixture needed for T0 transform and terrain-alignment evidence.
 
 ## Working rules
 

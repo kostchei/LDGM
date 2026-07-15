@@ -2,6 +2,7 @@
 #pragma once
 
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
+#include <LDMChronoVehicle/LDMChronoVehicleTypes.h>
 
 #include <AzCore/EBus/EBus.h>
 #include <AzCore/Interface/Interface.h>
@@ -13,7 +14,10 @@ namespace LDMChronoVehicle
     public:
         AZ_RTTI(LDMChronoVehicleRequests, LDMChronoVehicleRequestsTypeId);
         virtual ~LDMChronoVehicleRequests() = default;
-        // Put your public methods here
+
+        virtual VehicleReservationResult ReserveActiveVehicle(VehicleId vehicleId) = 0;
+        virtual bool ReleaseActiveVehicle(VehicleId vehicleId) = 0;
+        virtual SimulationTelemetry GetSimulationTelemetry() const = 0;
     };
 
     class LDMChronoVehicleBusTraits

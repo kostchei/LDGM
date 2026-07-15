@@ -11,10 +11,9 @@ $ErrorActionPreference = "Stop"
 $environment = Enter-LDGMEnvironment
 
 $launcherDirectory = Join-Path $environment.RepoRoot "build\windows\bin\$Configuration"
-$expectedMessage = "Chrono Core/Vehicle lifecycle smoke passed"
 $launchers = @(
-    @{ Name = "LDGM.GameLauncher.exe"; Log = "Game.log" },
-    @{ Name = "LDGM.ServerLauncher.exe"; Log = "Server.log" }
+    @{ Name = "LDGM.GameLauncher.exe"; Log = "Game.log"; Role = "role=client-linkage" },
+    @{ Name = "LDGM.ServerLauncher.exe"; Log = "Server.log"; Role = "role=authoritative" }
 )
 
 foreach ($launcher in $launchers) {
@@ -43,7 +42,13 @@ foreach ($launcher in $launchers) {
             if (-not $smokeObserved -and (Test-Path -LiteralPath $logPath)) {
                 $log = Get-Item -LiteralPath $logPath
                 if ($log.LastWriteTime -ge $startedAt) {
-                    $smokeObserved = Select-String -LiteralPath $logPath -SimpleMatch $expectedMessage -Quiet
+                    $lifecycleObserved = Select-String -LiteralPath $logPath `
+                        -SimpleMatch "Chrono Core/Vehicle lifecycle smoke passed" `
+                        -Quiet
+                    $roleObserved = Select-String -LiteralPath $logPath `
+                        -SimpleMatch $launcher.Role `
+                        -Quiet
+                    $smokeObserved = $lifecycleObserved -and $roleObserved
                 }
             }
 
@@ -51,10 +56,10 @@ foreach ($launcher in $launchers) {
         }
 
         if (-not $smokeObserved) {
-            throw "$($launcher.Name) remained alive but did not log the Chrono lifecycle smoke result."
+            throw "$($launcher.Name) remained alive but did not log the expected Chrono lifecycle role '$($launcher.Role)'."
         }
 
-        Write-Host "$($launcher.Name) remained alive for $ProbeSeconds seconds and logged the Chrono lifecycle smoke result."
+        Write-Host "$($launcher.Name) remained alive for $ProbeSeconds seconds and logged '$($launcher.Role)'."
     }
     finally {
         $process.Refresh()

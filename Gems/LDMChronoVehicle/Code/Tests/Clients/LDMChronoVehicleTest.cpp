@@ -14,15 +14,15 @@ namespace LDMChronoVehicle
     {
         ActiveVehicleRegistry registry;
 
-        for (VehicleId id = 1; id <= ActiveVehicleRegistry::MaxActiveVehicles; ++id)
+        for (VehicleId id = 1; id <= MaxActiveVehicles; ++id)
         {
             EXPECT_EQ(registry.Reserve(id), VehicleReservationResult::Reserved);
         }
 
-        EXPECT_EQ(registry.GetActiveCount(), ActiveVehicleRegistry::MaxActiveVehicles);
-        EXPECT_EQ(registry.Reserve(ActiveVehicleRegistry::MaxActiveVehicles + 1),
+        EXPECT_EQ(registry.GetActiveCount(), MaxActiveVehicles);
+        EXPECT_EQ(registry.Reserve(MaxActiveVehicles + 1),
             VehicleReservationResult::CapacityReached);
-        EXPECT_EQ(registry.GetActiveCount(), ActiveVehicleRegistry::MaxActiveVehicles);
+        EXPECT_EQ(registry.GetActiveCount(), MaxActiveVehicles);
     }
 
     TEST(ActiveVehicleRegistryTests, DuplicateAndReleaseOperationsAreIdempotent)

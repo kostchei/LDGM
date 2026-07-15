@@ -2,24 +2,69 @@
 #include "LDMChronoVehicleSystemComponent.h"
 
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
+#include <Simulation/ActiveVehicleRegistry.h>
+#include <Simulation/FixedStepClock.h>
 
-#include <AzCore/Debug/Trace.h>
 #include <AzCore/Component/TickBus.h>
+#include <AzCore/Console/IConsole.h>
+#include <AzCore/Casting/numeric_cast.h>
+#include <AzCore/Debug/Trace.h>
 #include <AzCore/Serialization/SerializeContext.h>
+#include <AzCore/Settings/SettingsRegistry.h>
+#include <AzCore/Settings/SettingsRegistryMergeUtils.h>
+#include <AzCore/std/string/string.h>
 
 #include <chrono/physics/ChBody.h>
 #include <chrono/physics/ChSystemNSC.h>
 #include <chrono_vehicle/ChWorldFrame.h>
 
+#include <chrono>
 #include <cmath>
 #include <memory>
 
 namespace LDMChronoVehicle
 {
+    namespace
+    {
+        constexpr double FixedStepSeconds = 0.005;
+        constexpr AZ::u32 MaxCatchUpSteps = 8;
+
+        bool IsAuthoritativeLauncher()
+        {
+            if (auto* console = AZ::Interface<AZ::IConsole>::Get())
+            {
+                bool isDedicated = false;
+                if (console->GetCvarValue("sv_isDedicated", isDedicated) == AZ::GetValueResult::Success)
+                {
+                    return isDedicated;
+                }
+            }
+
+            if (auto* settingsRegistry = AZ::SettingsRegistry::Get())
+            {
+                AZStd::string buildTargetName;
+                if (settingsRegistry->Get(buildTargetName, AZ::SettingsRegistryMergeUtils::BuildTargetNameKey))
+                {
+                    return buildTargetName.find("ServerLauncher") != AZStd::string::npos;
+                }
+            }
+
+            AZ_Fatal("LDMChronoVehicle",
+                "Cannot determine the launcher role: neither the sv_isDedicated cvar nor the "
+                "BuildTargetName settings-registry key is available. Refusing to guess.");
+            AZ::Debug::Trace::Instance().Crash();
+            return false; // Unreachable: Crash() does not return.
+        }
+    } // namespace
+
     struct LDMChronoVehicleSystemComponent::ChronoState
     {
         ChronoState()
+            : m_clock(FixedStepSeconds, MaxCatchUpSteps)
         {
+            m_telemetry.m_isAuthoritative = true;
+            m_telemetry.m_fixedStepSeconds = FixedStepSeconds;
+
             chrono::vehicle::ChWorldFrame::SetYUP();
             m_system.SetGravitationalAcceleration(-9.81 * chrono::vehicle::ChWorldFrame::Vertical());
 
@@ -32,6 +77,9 @@ namespace LDMChronoVehicle
 
         chrono::ChSystemNSC m_system;
         std::shared_ptr<chrono::ChBody> m_probeBody;
+        FixedStepClock m_clock;
+        ActiveVehicleRegistry m_activeVehicles;
+        SimulationTelemetry m_telemetry;
     };
 
     AZ_COMPONENT_IMPL(LDMChronoVehicleSystemComponent, "LDMChronoVehicleSystemComponent",
@@ -89,31 +137,96 @@ namespace LDMChronoVehicle
     {
         LDMChronoVehicleRequestBus::Handler::BusConnect();
 
-        m_chronoState = std::make_unique<ChronoState>();
-        constexpr double smokeStep = 0.005;
-        m_chronoState->m_system.DoStepDynamics(smokeStep);
+        auto smokeState = std::make_unique<ChronoState>();
+        smokeState->m_system.DoStepDynamics(FixedStepSeconds);
 
-        const double height = chrono::vehicle::ChWorldFrame::Height(m_chronoState->m_probeBody->GetPos());
+        const double height = chrono::vehicle::ChWorldFrame::Height(smokeState->m_probeBody->GetPos());
         const bool smokePassed = std::isfinite(height) &&
-            std::abs(m_chronoState->m_system.GetChTime() - smokeStep) < 1e-12 && height < 2.0;
+            std::abs(smokeState->m_system.GetChTime() - FixedStepSeconds) < 1e-12 && height < 2.0;
         AZ_Error("LDMChronoVehicle", smokePassed,
             "Chrono Core/Vehicle lifecycle smoke failed (time=%f, height=%f).",
-            m_chronoState->m_system.GetChTime(), height);
+            smokeState->m_system.GetChTime(), height);
+
+        const bool isAuthoritative = IsAuthoritativeLauncher();
         if (smokePassed)
         {
-            const double simulationTime = m_chronoState->m_system.GetChTime();
-            AZ::TickBus::QueueFunction([simulationTime, height]()
+            const double simulationTime = smokeState->m_system.GetChTime();
+            AZ::TickBus::QueueFunction([simulationTime, height, isAuthoritative]()
             {
-                AZ_Printf("LDMChronoVehicle", "Chrono Core/Vehicle lifecycle smoke passed (time=%f, height=%f).\n",
-                    simulationTime, height);
+                AZ_Printf("LDMChronoVehicle",
+                    "Chrono Core/Vehicle lifecycle smoke passed (time=%f, height=%f, role=%s).\n",
+                    simulationTime, height, isAuthoritative ? "authoritative" : "client-linkage");
             });
+        }
+
+        if (isAuthoritative)
+        {
+            m_chronoState = std::make_unique<ChronoState>();
+            AZ::TickBus::Handler::BusConnect();
         }
     }
 
     void LDMChronoVehicleSystemComponent::Deactivate()
     {
+        AZ::TickBus::Handler::BusDisconnect();
         m_chronoState.reset();
         LDMChronoVehicleRequestBus::Handler::BusDisconnect();
+    }
+
+    VehicleReservationResult LDMChronoVehicleSystemComponent::ReserveActiveVehicle(VehicleId vehicleId)
+    {
+        if (!m_chronoState)
+        {
+            return VehicleReservationResult::NotAuthoritative;
+        }
+
+        const VehicleReservationResult result = m_chronoState->m_activeVehicles.Reserve(vehicleId);
+        m_chronoState->m_telemetry.m_activeVehicleCount =
+            aznumeric_cast<AZ::u32>(m_chronoState->m_activeVehicles.GetActiveCount());
+        return result;
+    }
+
+    bool LDMChronoVehicleSystemComponent::ReleaseActiveVehicle(VehicleId vehicleId)
+    {
+        if (!m_chronoState)
+        {
+            return false;
+        }
+
+        const bool released = m_chronoState->m_activeVehicles.Release(vehicleId);
+        m_chronoState->m_telemetry.m_activeVehicleCount =
+            aznumeric_cast<AZ::u32>(m_chronoState->m_activeVehicles.GetActiveCount());
+        return released;
+    }
+
+    SimulationTelemetry LDMChronoVehicleSystemComponent::GetSimulationTelemetry() const
+    {
+        return m_chronoState ? m_chronoState->m_telemetry : SimulationTelemetry{};
+    }
+
+    void LDMChronoVehicleSystemComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    {
+        if (!m_chronoState)
+        {
+            return;
+        }
+
+        const FixedStepPlan plan = m_chronoState->m_clock.Advance(deltaTime);
+        const auto stepStartedAt = std::chrono::steady_clock::now();
+        for (AZ::u32 step = 0; step < plan.m_stepCount; ++step)
+        {
+            m_chronoState->m_system.DoStepDynamics(plan.m_fixedStepSeconds);
+        }
+        const auto stepFinishedAt = std::chrono::steady_clock::now();
+
+        SimulationTelemetry& telemetry = m_chronoState->m_telemetry;
+        telemetry.m_lastFrameStepCount = plan.m_stepCount;
+        telemetry.m_totalStepCount += plan.m_stepCount;
+        telemetry.m_lastStepWallTimeMs = plan.m_stepCount > 0
+            ? std::chrono::duration<double, std::milli>(stepFinishedAt - stepStartedAt).count()
+            : 0.0;
+        telemetry.m_totalDroppedSimulationSeconds += plan.m_droppedSeconds;
+        telemetry.m_accumulatorSeconds = plan.m_accumulatorSeconds;
     }
 
 } // namespace LDMChronoVehicle

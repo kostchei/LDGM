@@ -1,26 +1,13 @@
 #pragma once
 
-#include <AzCore/base.h>
 #include <AzCore/std/containers/array.h>
+#include <LDMChronoVehicle/LDMChronoVehicleTypes.h>
 
 namespace LDMChronoVehicle
 {
-    using VehicleId = AZ::u64;
-    inline constexpr VehicleId InvalidVehicleId = 0;
-
-    enum class VehicleReservationResult
-    {
-        Reserved,
-        AlreadyReserved,
-        CapacityReached,
-        InvalidId
-    };
-
     class ActiveVehicleRegistry final
     {
     public:
-        static constexpr size_t MaxActiveVehicles = 30;
-
         VehicleReservationResult Reserve(VehicleId vehicleId);
         bool Release(VehicleId vehicleId);
         bool Contains(VehicleId vehicleId) const;

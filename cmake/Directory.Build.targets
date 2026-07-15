@@ -2,6 +2,13 @@
   <ItemDefinitionGroup Condition="'$(LDGMDisableCompilerBatching)' == 'true'">
     <ClCompile>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
+      <!--
+        MSVC 19.44 can crash in CloseTypeServerPDB while large O3DE unity
+        translation units emit shared program-database debug information.
+        Embed CodeView data in each object (/Z7) in isolated mode so cl.exe
+        does not use the compiler PDB type-server path.
+      -->
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup Condition="'$(LDGMDisableCompilerBatching)' == 'true'">

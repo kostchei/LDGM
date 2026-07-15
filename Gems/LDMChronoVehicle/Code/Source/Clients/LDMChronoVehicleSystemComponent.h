@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <AzCore/Component/Component.h>
+#include <AzCore/Component/TickBus.h>
 #include <LDMChronoVehicle/LDMChronoVehicleBus.h>
 
 namespace LDMChronoVehicle
@@ -11,6 +12,7 @@ namespace LDMChronoVehicle
     class LDMChronoVehicleSystemComponent
         : public AZ::Component
         , protected LDMChronoVehicleRequestBus::Handler
+        , protected AZ::TickBus::Handler
     {
     public:
         AZ_COMPONENT_DECL(LDMChronoVehicleSystemComponent);
@@ -28,8 +30,12 @@ namespace LDMChronoVehicle
     protected:
         ////////////////////////////////////////////////////////////////////////
         // LDMChronoVehicleRequestBus interface implementation
-
+        VehicleReservationResult ReserveActiveVehicle(VehicleId vehicleId) override;
+        bool ReleaseActiveVehicle(VehicleId vehicleId) override;
+        SimulationTelemetry GetSimulationTelemetry() const override;
         ////////////////////////////////////////////////////////////////////////
+
+        void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
 
         ////////////////////////////////////////////////////////////////////////
         // AZ::Component interface implementation
