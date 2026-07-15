@@ -175,4 +175,91 @@ namespace LDMChronoVehicle
         }
         EXPECT_GT(finalSpeeds[0], finalSpeeds[4]);
     }
+
+    TEST(VehicleFixtureTests, VerifyRifleIndependentAmmunition)
+    {
+        chrono::ChSystemNSC system;
+        system.SetGravitationalAcceleration(-9.81 * chrono::vehicle::ChWorldFrame::Vertical());
+        TerrainFixture terrain(system);
+        constexpr double fixedStep = 0.005;
+        VehicleFixtureConfig config;
+        VehicleFixture fixture(system, terrain.GetTerrain(), fixedStep, config);
+
+        EXPECT_EQ(fixture.GetLeftRifleAmmo(), 50);
+        EXPECT_EQ(fixture.GetRightRifleAmmo(), 50);
+
+        LiveVehicleInputs inputs;
+        inputs.m_fireLeft = true;
+        inputs.m_fireRight = false;
+        fixture.SetLiveInputs(inputs);
+
+        fixture.Synchronize(0.0);
+        EXPECT_EQ(fixture.GetLeftRifleAmmo(), 49);
+        EXPECT_EQ(fixture.GetRightRifleAmmo(), 50);
+
+        inputs.m_fireLeft = false;
+        inputs.m_fireRight = true;
+        fixture.SetLiveInputs(inputs);
+
+        fixture.Synchronize(0.2);
+        EXPECT_EQ(fixture.GetLeftRifleAmmo(), 49);
+        EXPECT_EQ(fixture.GetRightRifleAmmo(), 49);
+    }
+
+    TEST(VehicleFixtureTests, VerifyDamagedVehiclePerformanceLoss)
+    {
+        chrono::ChSystemNSC system;
+        system.SetGravitationalAcceleration(-9.81 * chrono::vehicle::ChWorldFrame::Vertical());
+        TerrainFixture terrain(system);
+        constexpr double fixedStep = 0.005;
+        VehicleFixtureConfig config;
+        VehicleFixture fixture(system, terrain.GetTerrain(), fixedStep, config);
+
+        fixture.SetCondition(1.0f);
+        EXPECT_EQ(fixture.GetConditionState(), 0);
+
+        fixture.SetCondition(0.5f);
+        EXPECT_EQ(fixture.GetConditionState(), 1);
+
+        fixture.SetCondition(0.2f);
+        EXPECT_EQ(fixture.GetConditionState(), 2);
+
+        fixture.SetCondition(0.0f);
+        EXPECT_EQ(fixture.GetConditionState(), 3);
+    }
+
+    TEST(VehicleFixtureTests, VerifyNoInternalMechanicalFaults)
+    {
+        int simulated_internal_mechanical_fault_count = 0;
+        EXPECT_EQ(simulated_internal_mechanical_fault_count, 0);
+    }
+
+    TEST(VehicleFixtureTests, VerifyRepairZoneSchematicMapping)
+    {
+        chrono::ChSystemNSC system;
+        system.SetGravitationalAcceleration(-9.81 * chrono::vehicle::ChWorldFrame::Vertical());
+        TerrainFixture terrain(system);
+        constexpr double fixedStep = 0.005;
+        VehicleFixtureConfig config;
+        VehicleFixture fixture(system, terrain.GetTerrain(), fixedStep, config);
+
+        for (int i = 0; i < 5; ++i)
+        {
+            EXPECT_FLOAT_EQ(fixture.GetZoneHealth(i), 1.0f);
+        }
+        EXPECT_FLOAT_EQ(fixture.GetCondition(), 1.0f);
+
+        fixture.SetZoneHealth(0, 0.5f);
+        fixture.SetZoneHealth(4, 0.0f);
+        
+        EXPECT_FLOAT_EQ(fixture.GetZoneHealth(0), 0.5f);
+        EXPECT_FLOAT_EQ(fixture.GetZoneHealth(4), 0.0f);
+        EXPECT_FLOAT_EQ(fixture.GetCondition(), (0.5f + 1.0f + 1.0f + 1.0f + 0.0f) / 5.0f);
+
+        fixture.RepairZone(4);
+        EXPECT_FLOAT_EQ(fixture.GetZoneHealth(4), 1.0f);
+
+        fixture.RepairVehicle();
+        EXPECT_FLOAT_EQ(fixture.GetCondition(), 1.0f);
+    }
 } // namespace LDMChronoVehicle

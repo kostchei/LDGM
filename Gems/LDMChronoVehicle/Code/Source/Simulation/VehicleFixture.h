@@ -29,6 +29,8 @@ namespace LDMChronoVehicle
         bool m_handbrake = false;
         int m_driveMode = 1; // -1 = Reverse, 0 = Neutral, 1 = Forward
         bool m_engineStarted = true;
+        bool m_fireLeft = false;
+        bool m_fireRight = false;
     };
 
     struct VehicleFixtureConfig
@@ -64,6 +66,22 @@ namespace LDMChronoVehicle
         void SetLiveInputs(const LiveVehicleInputs& inputs);
         LiveVehicleInputs GetLiveInputs() const;
 
+        // Rifle APIs
+        AZ::u32 GetLeftRifleAmmo() const;
+        AZ::u32 GetRightRifleAmmo() const;
+        void SetLeftRifleAmmo(AZ::u32 ammo);
+        void SetRightRifleAmmo(AZ::u32 ammo);
+
+        // Damage & Repair APIs
+        float GetCondition() const;
+        void SetCondition(float condition);
+        AZ::u32 GetConditionState() const; // 0 = Healthy, 1 = Damaged, 2 = Critical, 3 = Destroyed
+        float GetZoneHealth(int zoneId) const;
+        void SetZoneHealth(int zoneId, float health);
+        void ApplyDamage(float amount);
+        void RepairZone(int zoneId);
+        void RepairVehicle();
+
     private:
         double m_fixedStepSeconds = 0.0;
         chrono::vehicle::RigidTerrain& m_terrain;
@@ -72,5 +90,12 @@ namespace LDMChronoVehicle
 
         LiveVehicleInputs m_liveInputs;
         bool m_useLiveInputs = false;
+
+        // Combat/Damage States
+        AZ::u32 m_leftAmmo = 50;
+        AZ::u32 m_rightAmmo = 50;
+        double m_leftCooldown = 0.0;
+        double m_rightCooldown = 0.0;
+        float m_zoneHealth[5] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
     };
 } // namespace LDMChronoVehicle

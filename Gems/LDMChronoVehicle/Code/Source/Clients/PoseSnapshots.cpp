@@ -66,13 +66,16 @@ namespace LDMChronoVehicle
             std::isfinite(m_simulationTimeSeconds) &&
             std::isfinite(m_positionX) && std::isfinite(m_positionY) && std::isfinite(m_positionZ) &&
             std::isfinite(m_rotationW) && std::isfinite(m_rotationX) &&
-            std::isfinite(m_rotationY) && std::isfinite(m_rotationZ);
+            std::isfinite(m_rotationY) && std::isfinite(m_rotationZ) &&
+            std::isfinite(m_condition);
         const double rotationLengthSquared =
             m_rotationW * m_rotationW + m_rotationX * m_rotationX +
             m_rotationY * m_rotationY + m_rotationZ * m_rotationZ;
         const bool rotationValid = std::isfinite(rotationLengthSquared) &&
             rotationLengthSquared > 0.99 && rotationLengthSquared < 1.01;
-        return headerValid && payloadFinite && rotationValid &&
+        const bool conditionValid = m_condition >= 0.0f && m_condition <= 1.01f && m_conditionState <= 3;
+        const bool ammoValid = m_leftAmmo <= 100 && m_rightAmmo <= 100;
+        return headerValid && payloadFinite && rotationValid && conditionValid && ammoValid &&
             m_simulationTimeSeconds >= 0.0 && m_vehicleId != InvalidVehicleId;
     }
 
@@ -112,7 +115,8 @@ namespace LDMChronoVehicle
     }
 
     void PoseSnapshotPublisher::Publish(double simulationTimeSeconds, VehicleId vehicleId,
-        const AZ::Transform& pose, AZ::u32 terrainChecksum)
+        const AZ::Transform& pose, AZ::u32 terrainChecksum,
+        AZ::u32 leftAmmo, AZ::u32 rightAmmo, AZ::u32 conditionState, float condition)
     {
         if (!IsReady())
         {
@@ -132,9 +136,11 @@ namespace LDMChronoVehicle
         packet.m_rotationY = static_cast<double>(rotation.GetY());
         packet.m_rotationZ = static_cast<double>(rotation.GetZ());
         packet.m_terrainChecksum = terrainChecksum;
+        packet.m_leftAmmo = leftAmmo;
+        packet.m_rightAmmo = rightAmmo;
+        packet.m_conditionState = conditionState;
+        packet.m_condition = condition;
 
-        // A send error simply means no client is listening yet (loopback
-        // ICMP unreachable); the next publish re-arms the socket.
         const AZ::s32 result = AZ::AzSock::Send(m_socket,
             reinterpret_cast<const char*>(&packet), sizeof(packet), 0);
         if (!AZ::AzSock::SocketErrorOccured(result))
@@ -236,7 +242,8 @@ namespace LDMChronoVehicle
             m_steering >= -1.05 && m_steering <= 1.05 &&
             m_throttle >= 0.0 && m_throttle <= 1.05 &&
             m_braking >= 0.0 && m_braking <= 1.05 &&
-            m_driveMode >= -1 && m_driveMode <= 1;
+            m_driveMode >= -1 && m_driveMode <= 1 &&
+            m_fireLeft <= 1 && m_fireRight <= 1;
         return headerValid && payloadFinite && valuesInBounds &&
             m_simulationTimeSeconds >= 0.0 && m_vehicleId != InvalidVehicleId;
     }
@@ -263,7 +270,8 @@ namespace LDMChronoVehicle
     }
 
     void VehicleInputPublisher::Publish(double simulationTimeSeconds, VehicleId vehicleId,
-        double steering, double throttle, double braking, bool handbrake, int driveMode, bool engineStarted)
+        double steering, double throttle, double braking, bool handbrake, int driveMode, bool engineStarted,
+        bool fireLeft, bool fireRight)
     {
         if (!IsReady())
         {
@@ -279,6 +287,8 @@ namespace LDMChronoVehicle
         packet.m_handbrake = handbrake ? 1 : 0;
         packet.m_driveMode = driveMode;
         packet.m_engineStarted = engineStarted ? 1 : 0;
+        packet.m_fireLeft = fireLeft ? 1 : 0;
+        packet.m_fireRight = fireRight ? 1 : 0;
 
         const AZ::s32 sent = AZ::AzSock::Send(m_socket,
             reinterpret_cast<const char*>(&packet), sizeof(packet), 0);

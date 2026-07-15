@@ -69,4 +69,56 @@ namespace LDMChronoVehicle
         packet.m_driveMode = 2;
         EXPECT_FALSE(packet.IsValid());
     }
+
+    TEST(PoseSnapshotPacketTests, AcceptsValidConditionAndAmmo)
+    {
+        PoseSnapshotPacket packet;
+        packet.m_vehicleId = 1;
+        packet.m_simulationTimeSeconds = 0.5;
+        packet.m_leftAmmo = 45;
+        packet.m_rightAmmo = 40;
+        packet.m_conditionState = 1;
+        packet.m_condition = 0.5f;
+
+        EXPECT_TRUE(packet.IsValid());
+    }
+
+    TEST(PoseSnapshotPacketTests, RejectsInvalidConditionAndAmmo)
+    {
+        PoseSnapshotPacket packet;
+        packet.m_vehicleId = 1;
+        packet.m_simulationTimeSeconds = 0.5;
+
+        packet.m_condition = 1.5f;
+        EXPECT_FALSE(packet.IsValid());
+
+        packet.m_condition = 0.8f;
+        packet.m_conditionState = 4;
+        EXPECT_FALSE(packet.IsValid());
+
+        packet.m_conditionState = 1;
+        packet.m_leftAmmo = 120;
+        EXPECT_FALSE(packet.IsValid());
+    }
+
+    TEST(VehicleInputPacketTests, AcceptsValidFireFlags)
+    {
+        VehicleInputPacket packet;
+        packet.m_vehicleId = 1;
+        packet.m_simulationTimeSeconds = 0.5;
+        packet.m_fireLeft = 1;
+        packet.m_fireRight = 1;
+
+        EXPECT_TRUE(packet.IsValid());
+    }
+
+    TEST(VehicleInputPacketTests, RejectsInvalidFireFlags)
+    {
+        VehicleInputPacket packet;
+        packet.m_vehicleId = 1;
+        packet.m_simulationTimeSeconds = 0.5;
+        packet.m_fireLeft = 2;
+
+        EXPECT_FALSE(packet.IsValid());
+    }
 } // namespace LDMChronoVehicle

@@ -389,6 +389,8 @@ namespace LDMChronoVehicle
                         inputs.m_handbrake = inputPacket.m_handbrake != 0;
                         inputs.m_driveMode = inputPacket.m_driveMode;
                         inputs.m_engineStarted = inputPacket.m_engineStarted != 0;
+                        inputs.m_fireLeft = inputPacket.m_fireLeft != 0;
+                        inputs.m_fireRight = inputPacket.m_fireRight != 0;
                         vehicle.m_fixture->SetLiveInputs(inputs);
                     }
                 }
@@ -496,7 +498,11 @@ namespace LDMChronoVehicle
                         simulationTime,
                         vehicle.m_vehicleId,
                         vehicle.m_fixture->GetChassisPose(),
-                        telemetry.m_terrainChecksum);
+                        telemetry.m_terrainChecksum,
+                        vehicle.m_fixture->GetLeftRifleAmmo(),
+                        vehicle.m_fixture->GetRightRifleAmmo(),
+                        vehicle.m_fixture->GetConditionState(),
+                        vehicle.m_fixture->GetCondition());
                 }
             }
         }
@@ -511,9 +517,11 @@ namespace LDMChronoVehicle
         bool gearUpPressed = false;
         bool gearDownPressed = false;
         bool engineStartPressed = false;
+        bool targetFireLeft = false;
+        bool targetFireRight = false;
 
 #if defined(AZ_PLATFORM_WINDOWS)
-        // 1. Keyboard
+        // 1. Keyboard & Mouse Firing
         if (GetAsyncKeyState('W') & 0x8000 || GetAsyncKeyState(VK_UP) & 0x8000)
         {
             targetThrottle = 1.0;
@@ -545,6 +553,14 @@ namespace LDMChronoVehicle
         if (GetAsyncKeyState('E') & 0x8000)
         {
             engineStartPressed = true;
+        }
+        if (GetAsyncKeyState('Q') & 0x8000 || GetAsyncKeyState(VK_LBUTTON) & 0x8000)
+        {
+            targetFireLeft = true;
+        }
+        if (GetAsyncKeyState('E') & 0x8000 || GetAsyncKeyState(VK_RBUTTON) & 0x8000)
+        {
+            targetFireRight = true;
         }
 
         // 2. Gamepad via XInput (dynamically loaded)
@@ -605,6 +621,14 @@ namespace LDMChronoVehicle
                 {
                     engineStartPressed = true;
                 }
+                if (state.Gamepad.wButtons & XINPUT_GAMEPAD_X)
+                {
+                    targetFireLeft = true;
+                }
+                if (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB)
+                {
+                    targetFireRight = true;
+                }
             }
         }
 #endif
@@ -649,7 +673,8 @@ namespace LDMChronoVehicle
             }
             m_inputPublisher->Publish(lastSimTime, ChronoState::PlayerVehicleId,
                 m_clientSteering, m_clientThrottle, m_clientBrake, m_clientHandbrake,
-                m_clientDriveMode, m_clientEngineStarted);
+                m_clientDriveMode, m_clientEngineStarted,
+                targetFireLeft, targetFireRight);
         }
 
         if (!snapshotsReceived)
@@ -747,6 +772,33 @@ namespace LDMChronoVehicle
                     m_clientHandbrake ? "true" : "false",
                     m_clientDriveMode,
                     m_clientEngineStarted ? "true" : "false");
+
+                AZ_Printf("LDMChronoVehicle",
+                    "T1 warning trace: t=%.3f state=%u condition=%.3f left_ammo=%u right_ammo=%u\n",
+                    packet.m_simulationTimeSeconds,
+                    packet.m_conditionState,
+                    static_cast<double>(packet.m_condition),
+                    packet.m_leftAmmo,
+                    packet.m_rightAmmo);
+
+                const char* soundStateStr = "normal";
+                if (packet.m_conditionState == 1) soundStateStr = "distressed_engine";
+                else if (packet.m_conditionState == 2) soundStateStr = "severe_grind";
+                else if (packet.m_conditionState == 3) soundStateStr = "silent_wreck";
+
+                AZ_Printf("LDMChronoVehicle",
+                    "T1 audio trace: t=%.3f sound_state=%s\n",
+                    packet.m_simulationTimeSeconds,
+                    soundStateStr);
+
+                const char* smokeFireStr = "No external smoke or fire";
+                if (packet.m_conditionState == 2) smokeFireStr = "Critical external marker: smoke_and_fire";
+                else if (packet.m_conditionState == 3) smokeFireStr = "Destroyed external marker present";
+
+                AZ_Printf("LDMChronoVehicle",
+                    "T1 visual trace: t=%.3f marker=%s\n",
+                    packet.m_simulationTimeSeconds,
+                    smokeFireStr);
             }
         }
     }
