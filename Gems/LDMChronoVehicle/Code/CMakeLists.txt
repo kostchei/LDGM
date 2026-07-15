@@ -70,6 +70,8 @@ ly_add_target(
         PRIVATE
             Chrono::Chrono_core
             Chrono::Chrono_vehicle
+            # The T0 fixture instantiates the stock HMMWV model.
+            Chrono::ChronoModels_vehicle
 )
 
 # Here add ${gem_name} target, it depends on the Private Object library and Public API interface

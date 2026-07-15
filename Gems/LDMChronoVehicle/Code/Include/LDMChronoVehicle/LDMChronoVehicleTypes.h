@@ -28,5 +28,13 @@ namespace LDMChronoVehicle
         double m_lastStepWallTimeMs = 0.0;
         double m_totalDroppedSimulationSeconds = 0.0;
         double m_accumulatorSeconds = 0.0;
+
+        // T0 vehicle/terrain fixture (authoritative role only).
+        bool m_vehicleFixtureActive = false;
+        AZ::u32 m_terrainChecksum = 0;
+        double m_vehiclePositionX = 0.0;
+        double m_vehiclePositionY = 0.0;
+        double m_vehiclePositionZ = 0.0;
+        double m_vehicleSpeedMetersPerSecond = 0.0;
     };
 } // namespace LDMChronoVehicle

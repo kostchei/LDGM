@@ -4,11 +4,15 @@
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
 #include <Simulation/ActiveVehicleRegistry.h>
 #include <Simulation/FixedStepClock.h>
+#include <Simulation/TerrainFixtureConfig.h>
+#include <Simulation/VehicleFixture.h>
 
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/Console/IConsole.h>
 #include <AzCore/Casting/numeric_cast.h>
 #include <AzCore/Debug/Trace.h>
+#include <AzCore/Math/Transform.h>
+#include <AzCore/Math/Vector3.h>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <AzCore/Settings/SettingsRegistry.h>
 #include <AzCore/Settings/SettingsRegistryMergeUtils.h>
@@ -59,7 +63,17 @@ namespace LDMChronoVehicle
 
     struct LDMChronoVehicleSystemComponent::ChronoState
     {
-        ChronoState()
+        enum class Role
+        {
+            LifecycleSmoke, // one probe body, one step, then discarded
+            Authoritative   // continuous stepping with the T0 vehicle fixture
+        };
+
+        // The T0 fixture vehicle occupies one slot of the active registry;
+        // capacity is reserved before the Chrono vehicle exists (ADR 0002).
+        static constexpr VehicleId FixtureVehicleId = 1;
+
+        explicit ChronoState(Role role)
             : m_clock(FixedStepSeconds, MaxCatchUpSteps)
         {
             m_telemetry.m_isAuthoritative = true;
@@ -71,18 +85,35 @@ namespace LDMChronoVehicle
                 "The Chrono world frame must remain the default ISO Z-up frame.");
             m_system.SetGravitationalAcceleration(-9.81 * chrono::vehicle::ChWorldFrame::Vertical());
 
-            m_probeBody = std::make_shared<chrono::ChBody>();
-            m_probeBody->SetMass(1.0);
-            m_probeBody->SetInertiaXX(chrono::ChVector3d(1.0, 1.0, 1.0));
-            m_probeBody->SetPos(chrono::ChVector3d(0.0, 0.0, 2.0));
-            m_system.AddBody(m_probeBody);
+            if (role == Role::LifecycleSmoke)
+            {
+                m_probeBody = std::make_shared<chrono::ChBody>();
+                m_probeBody->SetMass(1.0);
+                m_probeBody->SetInertiaXX(chrono::ChVector3d(1.0, 1.0, 1.0));
+                m_probeBody->SetPos(chrono::ChVector3d(0.0, 0.0, 2.0));
+                m_system.AddBody(m_probeBody);
+                return;
+            }
+
+            const VehicleReservationResult reservation = m_activeVehicles.Reserve(FixtureVehicleId);
+            AZ_Assert(reservation == VehicleReservationResult::Reserved,
+                "Reserving the T0 fixture vehicle failed (result=%d).",
+                static_cast<int>(reservation));
+            m_vehicleFixture = std::make_unique<VehicleFixture>(m_system, FixedStepSeconds);
+
+            m_telemetry.m_activeVehicleCount =
+                aznumeric_cast<AZ::u32>(m_activeVehicles.GetActiveCount());
+            m_telemetry.m_vehicleFixtureActive = true;
+            m_telemetry.m_terrainChecksum = CalculateTerrainFixtureChecksum();
         }
 
         chrono::ChSystemNSC m_system;
         std::shared_ptr<chrono::ChBody> m_probeBody;
+        std::unique_ptr<VehicleFixture> m_vehicleFixture;
         FixedStepClock m_clock;
         ActiveVehicleRegistry m_activeVehicles;
         SimulationTelemetry m_telemetry;
+        double m_nextTraceTimeSeconds = 0.0;
     };
 
     AZ_COMPONENT_IMPL(LDMChronoVehicleSystemComponent, "LDMChronoVehicleSystemComponent",
@@ -140,7 +171,7 @@ namespace LDMChronoVehicle
     {
         LDMChronoVehicleRequestBus::Handler::BusConnect();
 
-        auto smokeState = std::make_unique<ChronoState>();
+        auto smokeState = std::make_unique<ChronoState>(ChronoState::Role::LifecycleSmoke);
         smokeState->m_system.DoStepDynamics(FixedStepSeconds);
 
         const double height = chrono::vehicle::ChWorldFrame::Height(smokeState->m_probeBody->GetPos());
@@ -164,7 +195,12 @@ namespace LDMChronoVehicle
 
         if (isAuthoritative)
         {
-            m_chronoState = std::make_unique<ChronoState>();
+            m_chronoState = std::make_unique<ChronoState>(ChronoState::Role::Authoritative);
+            AZ_Printf("LDMChronoVehicle",
+                "T0 vehicle fixture created (terrain checksum=0x%08X, vehicles=%u/%u).\n",
+                m_chronoState->m_telemetry.m_terrainChecksum,
+                m_chronoState->m_telemetry.m_activeVehicleCount,
+                MaxActiveVehicles);
             AZ::TickBus::Handler::BusConnect();
         }
     }
@@ -218,6 +254,11 @@ namespace LDMChronoVehicle
         const auto stepStartedAt = std::chrono::steady_clock::now();
         for (AZ::u32 step = 0; step < plan.m_stepCount; ++step)
         {
+            if (m_chronoState->m_vehicleFixture)
+            {
+                m_chronoState->m_vehicleFixture->SynchronizeAndAdvance(
+                    m_chronoState->m_system.GetChTime());
+            }
             m_chronoState->m_system.DoStepDynamics(plan.m_fixedStepSeconds);
         }
         const auto stepFinishedAt = std::chrono::steady_clock::now();
@@ -230,6 +271,33 @@ namespace LDMChronoVehicle
             : 0.0;
         telemetry.m_totalDroppedSimulationSeconds += plan.m_droppedSeconds;
         telemetry.m_accumulatorSeconds = plan.m_accumulatorSeconds;
+
+        if (m_chronoState->m_vehicleFixture && plan.m_stepCount > 0)
+        {
+            const AZ::Transform pose = m_chronoState->m_vehicleFixture->GetChassisPose();
+            const AZ::Vector3 position = pose.GetTranslation();
+            telemetry.m_vehiclePositionX = static_cast<double>(position.GetX());
+            telemetry.m_vehiclePositionY = static_cast<double>(position.GetY());
+            telemetry.m_vehiclePositionZ = static_cast<double>(position.GetZ());
+            telemetry.m_vehicleSpeedMetersPerSecond =
+                m_chronoState->m_vehicleFixture->GetForwardSpeedMetersPerSecond();
+
+            // Transform trace for T0-PHYS-002 evidence: one line per
+            // simulated second in the server log.
+            const double simulationTime = m_chronoState->m_system.GetChTime();
+            if (simulationTime >= m_chronoState->m_nextTraceTimeSeconds)
+            {
+                m_chronoState->m_nextTraceTimeSeconds = simulationTime + 1.0;
+                AZ_Printf("LDMChronoVehicle",
+                    "T0 transform trace: t=%.3f pos=(%.3f, %.3f, %.3f) speed=%.2f terrain=0x%08X\n",
+                    simulationTime,
+                    telemetry.m_vehiclePositionX,
+                    telemetry.m_vehiclePositionY,
+                    telemetry.m_vehiclePositionZ,
+                    telemetry.m_vehicleSpeedMetersPerSecond,
+                    telemetry.m_terrainChecksum);
+            }
+        }
     }
 
 } // namespace LDMChronoVehicle

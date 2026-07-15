@@ -10,4 +10,8 @@ set(FILES
     Source/Simulation/CoordinateConversion.h
     Source/Simulation/FixedStepClock.cpp
     Source/Simulation/FixedStepClock.h
+    Source/Simulation/TerrainFixtureConfig.cpp
+    Source/Simulation/TerrainFixtureConfig.h
+    Source/Simulation/VehicleFixture.cpp
+    Source/Simulation/VehicleFixture.h
 )
