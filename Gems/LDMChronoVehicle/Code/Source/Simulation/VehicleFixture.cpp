@@ -1,5 +1,6 @@
 #include "VehicleFixture.h"
 
+#include "ChassisPresentationConfig.h"
 #include "CoordinateConversion.h"
 #include "TerrainFixtureConfig.h"
 
@@ -72,13 +73,13 @@ namespace LDMChronoVehicle
         m_vehicle->SetWheelVisualizationType(chrono::VisualizationType::NONE);
         m_vehicle->SetTireVisualizationType(chrono::VisualizationType::NONE);
 
-        // Initialize weapon mount slots
-        m_weaponSlots[0] = { AZ::Vector3(2.0f, -0.5f, 0.5f), 50, 0.0, true };  // Front Left
-        m_weaponSlots[1] = { AZ::Vector3(2.0f, 0.5f, 0.5f), 50, 0.0, true };   // Front Right
-        m_weaponSlots[2] = { AZ::Vector3(0.0f, 0.0f, 1.0f), 50, 0.0, false };  // Central (Roof)
-        m_weaponSlots[3] = { AZ::Vector3(0.0f, -1.0f, 0.5f), 50, 0.0, false }; // Left Side
-        m_weaponSlots[4] = { AZ::Vector3(0.0f, 1.0f, 0.5f), 50, 0.0, false };  // Right Side
-        m_weaponSlots[5] = { AZ::Vector3(-2.0f, 0.0f, 0.5f), 50, 0.0, false }; // Rear
+        // Initialize weapon mount slots at the shared chassis mount offsets.
+        // Only the two front rifles start equipped (T2 starter loadout).
+        for (int i = 0; i < ChassisPresentationConfig::WeaponMountCount; ++i)
+        {
+            m_weaponSlots[i] = {
+                ChassisPresentationConfig::WeaponMountOffsets[i], 50, 0.0, i < 2 };
+        }
     }
 
     VehicleFixture::~VehicleFixture() = default;

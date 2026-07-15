@@ -68,6 +68,9 @@ ly_add_target(
             AZ::AzCore
             AZ::AzFramework
             Gem::AtomLyIntegration_CommonFeatures.Public
+            # The client combat HUD (reticle, ammunition readout) draws
+            # through the ImGui gem's update listener bus.
+            Gem::ImGui.imguilib
         PRIVATE
             Chrono::Chrono_core
             Chrono::Chrono_vehicle

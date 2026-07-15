@@ -12,6 +12,7 @@ set(FILES
     Source/Clients/VehicleProxyComponent.h
     Source/Simulation/ActiveVehicleRegistry.cpp
     Source/Simulation/ActiveVehicleRegistry.h
+    Source/Simulation/ChassisPresentationConfig.h
     Source/Simulation/CoordinateConversion.cpp
     Source/Simulation/CoordinateConversion.h
     Source/Simulation/FixedStepClock.cpp

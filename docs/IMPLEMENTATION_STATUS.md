@@ -1,6 +1,6 @@
 # LDGM implementation status
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 ## Current stage
 
@@ -101,6 +101,11 @@ The T0 implementation now runs two authoritative Chrono vehicles (player and ene
 - Replaced transform-only client proxies with game-context entities that own Atom mesh components, added a scaled runtime ground presentation, and activated a real O3DE camera entity rigidly attached to the player cockpit.
 - Added runtime O3DE terrain-transform readback and alignment telemetry. The passing profile probe measured 0.000 m terrain origin/surface/extent error, 0.000 m proxy position error, and 0.039565° maximum proxy orientation error.
 - Added `tools/evaluate_t0_gate.py` and generated the formal machine-readable T0 result. Automated physics, camera, capacity, timing, unit-test, and smoke-test assertions pass; the overall gate remains blocked on explicitly listed evidence gaps.
+- Added the shared `Simulation/ChassisPresentationConfig.h` chassis contract (driver eye offset, camera near clip, six weapon mount offsets) consumed by both the authoritative weapon slots and the client presentation; the front rifles now mount at cowl height so their sight line clears the engine box.
+- Replaced the single stretched-cube client presentation with a starter-technical rig per vehicle: a transform-only root plus 23 child part entities (engine box, panel-built cabin with dash/roof/pillars/doors/bench/steering wheel, open cargo tray with tailgate, four cylinder wheels) and per-equipped-mount weapon visuals (pedestal, barrel, rear sight, cone front-sight post) built from processed primitive models.
+- Diagnosed and fixed a silent presentation failure: `CreateGameEntity` marks entities runtime-inactive-by-default, so a direct `Entity::Activate()` left the effective-active flags cleared and transform parenting deactivated every child part (and the mesh components with them) without any log output. All runtime presentation entities now activate through `GameEntityContextRequestBus::ActivateGameEntity`, and part creation hard-fails with explicit errors if the catalog cannot resolve a model or the mesh component does not accept it.
+- Added an ImGui combat HUD on the client (fixed-forward reticle at screen center plus per-mount ammunition, condition and fuel readouts), suppressed the engine debug console overlay, and pulled the cockpit camera near clip to 0.05 m via the shared config.
+- Added automated first-person visual evidence: the client captures `@user@/screenshots/t1_cockpit_N.png` through `FrameCaptureRequestBus` at fixed simulation times when a real RHI is active, and logs the skip under the null RHI. Captured dx12 screenshots show the cabin interior (dash, steering wheel, door and A-pillar), the rifle barrel and front-sight post over the bonnet, the HUD, and the enemy technical rendering as a multi-part vehicle.
 
 ## Next checkpoint
 

@@ -13,9 +13,14 @@
 #include <Clients/PoseSnapshots.h>
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
 #include <Simulation/ActiveVehicleRegistry.h>
+#include <Simulation/ChassisPresentationConfig.h>
 #include <Simulation/FixedStepClock.h>
 #include <Simulation/TerrainFixtureConfig.h>
 #include <Simulation/VehicleFixture.h>
+
+#if defined(IMGUI_ENABLED)
+#include <imgui/imgui.h>
+#endif
 
 #include <AzCore/Component/Entity.h>
 #include <AzCore/Component/TransformBus.h>
@@ -26,7 +31,10 @@
 
 #include <AtomLyIntegration/CommonFeatures/Mesh/MeshComponentBus.h>
 #include <AtomLyIntegration/CommonFeatures/Mesh/MeshComponentConstants.h>
+#include <Atom/Feature/Utils/FrameCaptureBus.h>
 
+#include <AzCore/Asset/AssetManagerBus.h>
+#include <AzCore/Component/ComponentApplicationBus.h>
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/Console/IConsole.h>
 #include <AzCore/Casting/numeric_cast.h>
@@ -55,10 +63,156 @@ namespace LDMChronoVehicle
     {
         constexpr double FixedStepSeconds = 0.005;
         constexpr AZ::u32 MaxCatchUpSteps = 8;
-        constexpr const char* VehicleModelAssetPath =
+        constexpr const char* CubeModelAssetPath =
             "materialeditor/viewportmodels/cube.fbx.azmodel";
+        constexpr const char* CylinderModelAssetPath =
+            "materialeditor/viewportmodels/cylinder.fbx.azmodel";
+        constexpr const char* ConeModelAssetPath =
+            "materialeditor/viewportmodels/cone.fbx.azmodel";
+        constexpr const char* TorusModelAssetPath =
+            "materialeditor/viewportmodels/torus.fbx.azmodel";
         constexpr const char* GroundModelAssetPath =
             "objects/groudplane/groundplane_512x512m.fbx.azmodel";
+
+        // Starter-technical hull rig built from processed primitive models:
+        // an engine box ahead of the cabin, a panel-built cabin (so the
+        // interior stays visible from the driver eye point; a single closed
+        // box would be backface-culled from inside), and an open cargo tray.
+        // Chassis local frame: +X forward, +Y left, Z up, origin at the
+        // Chrono chassis reference. The hull floor sits at local z = -0.05.
+        struct HullPartSpec
+        {
+            const char* m_name;
+            const char* m_modelAssetPath;
+            AZ::Vector3 m_position;
+            AZ::Vector3 m_scale;
+            float m_pitchAboutYDegrees; // model +Z tilts toward +X
+            float m_rollAboutXDegrees;  // model +Z tilts toward -Y
+        };
+
+        constexpr float NoRotation = 0.0f;
+
+        const HullPartSpec HullParts[] = {
+            // Engine box: bonnet top at z = 0.65, below the driver eye line.
+            { "EngineBox", CubeModelAssetPath,
+              AZ::Vector3(1.55f, 0.0f, 0.3f), AZ::Vector3(1.3f, 1.8f, 0.7f),
+              NoRotation, NoRotation },
+            // Cabin box, panel by panel.
+            { "CabinFloor", CubeModelAssetPath,
+              AZ::Vector3(0.275f, 0.0f, -0.05f), AZ::Vector3(1.25f, 1.9f, 0.1f),
+              NoRotation, NoRotation },
+            { "CabinDash", CubeModelAssetPath,
+              AZ::Vector3(0.75f, 0.0f, 0.45f), AZ::Vector3(0.3f, 1.9f, 0.6f),
+              NoRotation, NoRotation },
+            { "CabinRoof", CubeModelAssetPath,
+              AZ::Vector3(0.275f, 0.0f, 1.55f), AZ::Vector3(1.25f, 1.9f, 0.1f),
+              NoRotation, NoRotation },
+            { "CabinRearWall", CubeModelAssetPath,
+              AZ::Vector3(-0.3f, 0.0f, 0.45f), AZ::Vector3(0.1f, 1.9f, 1.0f),
+              NoRotation, NoRotation },
+            { "CabinRearHeader", CubeModelAssetPath,
+              AZ::Vector3(-0.3f, 0.0f, 1.5f), AZ::Vector3(0.1f, 1.9f, 0.2f),
+              NoRotation, NoRotation },
+            { "CabinAPillarLeft", CubeModelAssetPath,
+              AZ::Vector3(0.85f, 0.9f, 1.1f), AZ::Vector3(0.12f, 0.12f, 0.9f),
+              NoRotation, NoRotation },
+            { "CabinAPillarRight", CubeModelAssetPath,
+              AZ::Vector3(0.85f, -0.9f, 1.1f), AZ::Vector3(0.12f, 0.12f, 0.9f),
+              NoRotation, NoRotation },
+            { "CabinWindshieldHeader", CubeModelAssetPath,
+              AZ::Vector3(0.85f, 0.0f, 1.5f), AZ::Vector3(0.12f, 1.9f, 0.15f),
+              NoRotation, NoRotation },
+            { "CabinDoorLeft", CubeModelAssetPath,
+              AZ::Vector3(0.275f, 0.925f, 0.4f), AZ::Vector3(1.25f, 0.06f, 0.9f),
+              NoRotation, NoRotation },
+            { "CabinDoorRight", CubeModelAssetPath,
+              AZ::Vector3(0.275f, -0.925f, 0.4f), AZ::Vector3(1.25f, 0.06f, 0.9f),
+              NoRotation, NoRotation },
+            { "CabinBenchSeat", CubeModelAssetPath,
+              AZ::Vector3(0.0f, 0.0f, 0.3f), AZ::Vector3(0.5f, 1.7f, 0.2f),
+              NoRotation, NoRotation },
+            { "CabinSeatBack", CubeModelAssetPath,
+              AZ::Vector3(-0.2f, 0.0f, 0.6f), AZ::Vector3(0.12f, 1.7f, 0.5f),
+              NoRotation, NoRotation },
+            // Steering wheel: torus lies in the model XY plane; pitch it up
+            // toward the driver like a truck steering column.
+            { "SteeringWheel", TorusModelAssetPath,
+              AZ::Vector3(0.72f, 0.4f, 0.8f), AZ::Vector3(0.38f, 0.38f, 0.1f),
+              75.0f, NoRotation },
+            // Cargo tray: open box behind the cabin.
+            { "CargoFloor", CubeModelAssetPath,
+              AZ::Vector3(-1.25f, 0.0f, 0.0f), AZ::Vector3(1.7f, 1.9f, 0.1f),
+              NoRotation, NoRotation },
+            { "CargoWallLeft", CubeModelAssetPath,
+              AZ::Vector3(-1.25f, 0.925f, 0.3f), AZ::Vector3(1.7f, 0.06f, 0.5f),
+              NoRotation, NoRotation },
+            { "CargoWallRight", CubeModelAssetPath,
+              AZ::Vector3(-1.25f, -0.925f, 0.3f), AZ::Vector3(1.7f, 0.06f, 0.5f),
+              NoRotation, NoRotation },
+            { "CargoTailgate", CubeModelAssetPath,
+              AZ::Vector3(-2.05f, 0.0f, 0.3f), AZ::Vector3(0.06f, 1.9f, 0.5f),
+              NoRotation, NoRotation },
+            { "CargoHeadboard", CubeModelAssetPath,
+              AZ::Vector3(-0.45f, 0.0f, 0.3f), AZ::Vector3(0.06f, 1.9f, 0.5f),
+              NoRotation, NoRotation },
+            // Wheels: cylinder axis is model +Z; roll 90 degrees so the axle
+            // runs along the chassis Y axis.
+            { "WheelFrontLeft", CylinderModelAssetPath,
+              AZ::Vector3(1.55f, 0.95f, -0.15f), AZ::Vector3(0.9f, 0.9f, 0.35f),
+              NoRotation, 90.0f },
+            { "WheelFrontRight", CylinderModelAssetPath,
+              AZ::Vector3(1.55f, -0.95f, -0.15f), AZ::Vector3(0.9f, 0.9f, 0.35f),
+              NoRotation, 90.0f },
+            { "WheelRearLeft", CylinderModelAssetPath,
+              AZ::Vector3(-1.35f, 0.95f, -0.15f), AZ::Vector3(0.9f, 0.9f, 0.35f),
+              NoRotation, 90.0f },
+            { "WheelRearRight", CylinderModelAssetPath,
+              AZ::Vector3(-1.35f, -0.95f, -0.15f), AZ::Vector3(0.9f, 0.9f, 0.35f),
+              NoRotation, 90.0f },
+        };
+
+        // Weapon visual rig relative to a shared mount offset: a pedestal
+        // down to the hull, a barrel along +X, and iron sights on top.
+        struct WeaponPartSpec
+        {
+            const char* m_name;
+            const char* m_modelAssetPath;
+            AZ::Vector3 m_offsetFromMount;
+            AZ::Vector3 m_scale;
+            float m_pitchAboutYDegrees;
+        };
+
+        const WeaponPartSpec WeaponParts[] = {
+            { "Pedestal", CylinderModelAssetPath,
+              AZ::Vector3(0.0f, 0.0f, -0.2f), AZ::Vector3(0.08f, 0.08f, 0.3f),
+              NoRotation },
+            { "Barrel", CylinderModelAssetPath,
+              AZ::Vector3(0.35f, 0.0f, 0.0f), AZ::Vector3(0.07f, 0.07f, 1.1f),
+              90.0f },
+            { "RearSight", CubeModelAssetPath,
+              AZ::Vector3(-0.15f, 0.0f, 0.06f), AZ::Vector3(0.03f, 0.08f, 0.05f),
+              NoRotation },
+            { "FrontSightPost", ConeModelAssetPath,
+              AZ::Vector3(0.75f, 0.0f, 0.07f), AZ::Vector3(0.04f, 0.04f, 0.08f),
+              NoRotation },
+        };
+
+        // The material-editor viewport primitives import as ~1 m meshes
+        // (authored 100 cm across), except the torus at ~1.50 x 1.50 x 0.50 m
+        // (source metadata: 149.6 x 149.6 x 49.8 cm). Part sizes above are
+        // authored in meters; divide by the imported model dimensions to get
+        // the render scale.
+        AZ::Vector3 PartScaleFromMeters(const char* modelAssetPath, const AZ::Vector3& sizeMeters)
+        {
+            if (azstricmp(modelAssetPath, TorusModelAssetPath) == 0)
+            {
+                return AZ::Vector3(
+                    sizeMeters.GetX() / 1.49579f,
+                    sizeMeters.GetY() / 1.49579f,
+                    sizeMeters.GetZ() / 0.49760f);
+            }
+            return sizeMeters;
+        }
 
         bool IsAuthoritativeLauncher()
         {
@@ -281,11 +435,17 @@ namespace LDMChronoVehicle
             m_snapshotReceiver = AZStd::make_unique<PoseSnapshotReceiver>();
             m_inputPublisher = AZStd::make_unique<VehicleInputPublisher>();
             AZ::TickBus::Handler::BusConnect();
+#if defined(IMGUI_ENABLED)
+            ImGui::ImGuiUpdateListenerBus::Handler::BusConnect();
+#endif
         }
     }
 
     void LDMChronoVehicleSystemComponent::Deactivate()
     {
+#if defined(IMGUI_ENABLED)
+        ImGui::ImGuiUpdateListenerBus::Handler::BusDisconnect();
+#endif
         DestroyClientPresentation();
         m_snapshotReceiver.reset();
         m_inputPublisher.reset();
@@ -749,11 +909,23 @@ namespace LDMChronoVehicle
             AZ::EntityId& entityId = m_clientVehicleEntities[packet.m_vehicleId];
             if (!entityId.IsValid())
             {
-                entityId = CreateClientVehiclePresentation(packet.m_vehicleId);
+                entityId = CreateClientVehiclePresentation(packet.m_vehicleId, packet);
             }
             if (!entityId.IsValid())
             {
                 continue;
+            }
+
+            if (packet.m_vehicleId == ChronoState::PlayerVehicleId)
+            {
+                for (int slot = 0; slot < 6; ++slot)
+                {
+                    m_hudAmmo[slot] = packet.m_ammo[slot];
+                    m_hudEquipped[slot] = packet.m_equipped[slot];
+                }
+                m_hudConditionState = packet.m_conditionState;
+                m_hudCondition = packet.m_condition;
+                m_hudFuelRatio = packet.m_fuelRatio;
             }
 
             const AZ::Transform pose = packet.GetPose();
@@ -786,10 +958,17 @@ namespace LDMChronoVehicle
             }
 
             const AZ::Vector3 position = pose.GetTranslation();
+            // The rig root is transform-only; sample the first hull part for
+            // model readiness evidence.
             AZ::Data::AssetId modelAssetId;
-            AZ::Render::MeshComponentRequestBus::EventResult(
-                modelAssetId, entityId,
-                &AZ::Render::MeshComponentRequestBus::Events::GetModelAssetId);
+            const AZStd::vector<AZ::EntityId>& partEntityIds =
+                m_clientVehiclePartEntities[packet.m_vehicleId];
+            if (!partEntityIds.empty())
+            {
+                AZ::Render::MeshComponentRequestBus::EventResult(
+                    modelAssetId, partEntityIds.front(),
+                    &AZ::Render::MeshComponentRequestBus::Events::GetModelAssetId);
+            }
             AZ_Printf("LDMChronoVehicle",
                 "T0 snapshot trace: t=%.3f vehicle=%llu pos=(%.3f, %.3f, %.3f) "
                 "received=%llu rejected=%llu terrain=0x%08X presentations=%zu\n",
@@ -862,13 +1041,58 @@ namespace LDMChronoVehicle
                     packet.m_simulationTimeSeconds,
                     packet.m_missionState,
                     static_cast<double>(packet.m_fuelRatio));
+
+                // Cockpit visual evidence: capture the rendered first-person
+                // view at fixed simulation times. Skipped (and logged) when
+                // the null RHI is active, e.g. in headless probes.
+                constexpr double CaptureTimesSeconds[] = { 6.0, 12.0 };
+                if (m_cockpitScreenshotsTaken < AZ_ARRAY_SIZE(CaptureTimesSeconds) &&
+                    packet.m_simulationTimeSeconds >=
+                        CaptureTimesSeconds[m_cockpitScreenshotsTaken])
+                {
+                    ++m_cockpitScreenshotsTaken;
+                    bool canCapture = false;
+                    AZ::Render::FrameCaptureRequestBus::BroadcastResult(
+                        canCapture,
+                        &AZ::Render::FrameCaptureRequestBus::Events::CanCapture);
+                    if (canCapture)
+                    {
+                        const AZStd::string capturePath = AZStd::string::format(
+                            "@user@/screenshots/t1_cockpit_%u.png",
+                            m_cockpitScreenshotsTaken);
+                        AZ::Render::FrameCaptureOutcome outcome;
+                        AZ::Render::FrameCaptureRequestBus::BroadcastResult(
+                            outcome,
+                            &AZ::Render::FrameCaptureRequestBus::Events::CaptureScreenshot,
+                            capturePath);
+                        AZ_Printf("LDMChronoVehicle",
+                            "T1 cockpit capture %u at t=%.3f: %s (%s)\n",
+                            m_cockpitScreenshotsTaken,
+                            packet.m_simulationTimeSeconds,
+                            outcome.IsSuccess() ? "requested" : "failed",
+                            outcome.IsSuccess()
+                                ? capturePath.c_str()
+                                : outcome.GetError().m_errorMessage.c_str());
+                    }
+                    else
+                    {
+                        AZ_Printf("LDMChronoVehicle",
+                            "T1 cockpit capture %u at t=%.3f: unavailable "
+                            "(null RHI or no frame capture support).\n",
+                            m_cockpitScreenshotsTaken,
+                            packet.m_simulationTimeSeconds);
+                    }
+                }
             }
         }
     }
 
     AZ::EntityId LDMChronoVehicleSystemComponent::CreateClientVehiclePresentation(
-        VehicleId vehicleId)
+        VehicleId vehicleId, const PoseSnapshotPacket& packet)
     {
+        // Rig root: transform only. Every visible part is a child entity so
+        // one authoritative pose update moves the whole hull, cabin, tray,
+        // wheels and weapon visuals together.
         AZ::Entity* entity = nullptr;
         const AZStd::string name = AZStd::string::format(
             vehicleId == ChronoState::PlayerVehicleId
@@ -887,27 +1111,140 @@ namespace LDMChronoVehicle
         }
 
         entity->CreateComponent<AzFramework::TransformComponent>();
-        entity->CreateComponent<AzFramework::NonUniformScaleComponent>();
-        AZ::Component* meshComponent =
-            entity->CreateComponent(AZ::Render::MeshComponentTypeId);
-        if (meshComponent == nullptr)
+        // Activate through the game context so the entity is flagged
+        // effectively-active; child parts inherit that flag when parented.
+        AzFramework::GameEntityContextRequestBus::Broadcast(
+            &AzFramework::GameEntityContextRequestBus::Events::ActivateGameEntity,
+            entity->GetId());
+        const AZ::EntityId rootEntityId = entity->GetId();
+
+        AZStd::vector<AZ::EntityId>& partEntities =
+            m_clientVehiclePartEntities[vehicleId];
+
+        for (const HullPartSpec& part : HullParts)
+        {
+            const AZ::Quaternion rotation =
+                AZ::Quaternion::CreateRotationX(AZ::DegToRad(part.m_rollAboutXDegrees)) *
+                AZ::Quaternion::CreateRotationY(AZ::DegToRad(part.m_pitchAboutYDegrees));
+            const AZ::EntityId partId = CreateVehiclePartEntity(
+                rootEntityId, part.m_name, part.m_modelAssetPath,
+                AZ::Transform::CreateFromQuaternionAndTranslation(
+                    rotation, part.m_position),
+                part.m_scale);
+            if (partId.IsValid())
+            {
+                partEntities.push_back(partId);
+            }
+        }
+
+        AZ::u32 weaponVisualCount = 0;
+        for (int slot = 0; slot < ChassisPresentationConfig::WeaponMountCount; ++slot)
+        {
+            if (packet.m_equipped[slot] == 0)
+            {
+                continue;
+            }
+            const AZ::Vector3& mount =
+                ChassisPresentationConfig::WeaponMountOffsets[slot];
+            for (const WeaponPartSpec& part : WeaponParts)
+            {
+                const AZStd::string partName = AZStd::string::format(
+                    "Weapon%d%s", slot, part.m_name);
+                const AZ::EntityId partId = CreateVehiclePartEntity(
+                    rootEntityId, partName.c_str(), part.m_modelAssetPath,
+                    AZ::Transform::CreateFromQuaternionAndTranslation(
+                        AZ::Quaternion::CreateRotationY(
+                            AZ::DegToRad(part.m_pitchAboutYDegrees)),
+                        mount + part.m_offsetFromMount),
+                    part.m_scale);
+                if (partId.IsValid())
+                {
+                    partEntities.push_back(partId);
+                    ++weaponVisualCount;
+                }
+            }
+        }
+
+        AZ_Printf("LDMChronoVehicle",
+            "T1 vehicle rig created: vehicle=%llu hull_parts=%zu weapon_parts=%u\n",
+            static_cast<unsigned long long>(vehicleId),
+            AZ_ARRAY_SIZE(HullParts),
+            weaponVisualCount);
+        return rootEntityId;
+    }
+
+    AZ::EntityId LDMChronoVehicleSystemComponent::CreateVehiclePartEntity(
+        AZ::EntityId parentEntityId,
+        const char* partName,
+        const char* modelAssetPath,
+        const AZ::Transform& localTransform,
+        const AZ::Vector3& partSizeMeters)
+    {
+        AZ::Entity* entity = nullptr;
+        AzFramework::GameEntityContextRequestBus::BroadcastResult(
+            entity, &AzFramework::GameEntityContextRequestBus::Events::CreateGameEntity,
+            partName);
+        if (entity == nullptr)
         {
             AZ_Error("LDMChronoVehicle", false,
-                "The Atom runtime MeshComponent descriptor is unavailable.");
+                "Unable to create vehicle part entity '%s'.", partName);
+            return AZ::EntityId();
+        }
+
+        entity->CreateComponent<AzFramework::TransformComponent>();
+        entity->CreateComponent<AzFramework::NonUniformScaleComponent>();
+        if (entity->CreateComponent(AZ::Render::MeshComponentTypeId) == nullptr)
+        {
+            AZ_Error("LDMChronoVehicle", false,
+                "The Atom runtime MeshComponent descriptor is unavailable for '%s'.",
+                partName);
             AzFramework::GameEntityContextRequestBus::Broadcast(
                 &AzFramework::GameEntityContextRequestBus::Events::DestroyGameEntity,
                 entity->GetId());
             return AZ::EntityId();
         }
 
-        entity->Activate();
+        // Game-context entities are created effectively-inactive
+        // (SetRuntimeActiveByDefault(false)); activate through the context so
+        // the entity's active-state flags are set as well. A direct
+        // Entity::Activate() leaves the flags cleared and the transform
+        // parenting below would silently deactivate the part again.
+        AzFramework::GameEntityContextRequestBus::Broadcast(
+            &AzFramework::GameEntityContextRequestBus::Events::ActivateGameEntity,
+            entity->GetId());
+        AZ::TransformBus::Event(
+            entity->GetId(), &AZ::TransformBus::Events::SetParent, parentEntityId);
+        AZ::TransformBus::Event(
+            entity->GetId(), &AZ::TransformBus::Events::SetLocalTM, localTransform);
         AZ::NonUniformScaleRequestBus::Event(
             entity->GetId(), &AZ::NonUniformScaleRequests::SetScale,
-            AZ::Vector3(4.0f, 2.0f, 1.0f));
+            PartScaleFromMeters(modelAssetPath, partSizeMeters));
         AZ::Render::MeshComponentRequestBus::Event(
             entity->GetId(),
             &AZ::Render::MeshComponentRequestBus::Events::SetModelAssetPath,
-            AZStd::string(VehicleModelAssetPath));
+            AZStd::string(modelAssetPath));
+
+        // The rig is invisible if a model silently fails to resolve; surface
+        // both failure modes (catalog miss vs. mesh component not accepting
+        // the asset) as hard errors.
+        AZ::Data::AssetId resolvedAssetId;
+        AZ::Data::AssetCatalogRequestBus::BroadcastResult(
+            resolvedAssetId,
+            &AZ::Data::AssetCatalogRequestBus::Events::GetAssetIdByPath,
+            modelAssetPath, AZ::Data::AssetType::CreateNull(), false);
+        AZ_Error("LDMChronoVehicle", resolvedAssetId.IsValid(),
+            "Asset catalog cannot resolve part model '%s' for '%s'.",
+            modelAssetPath, partName);
+        AZ::Data::AssetId configuredAssetId;
+        AZ::Render::MeshComponentRequestBus::EventResult(
+            configuredAssetId, entity->GetId(),
+            &AZ::Render::MeshComponentRequestBus::Events::GetModelAssetId);
+        AZ_Error("LDMChronoVehicle", configuredAssetId.IsValid(),
+            "Mesh component on '%s' did not accept model '%s' "
+            "(catalog id %s, entity_state=%d).",
+            partName, modelAssetPath,
+            resolvedAssetId.IsValid() ? "valid" : "invalid",
+            static_cast<int>(entity->GetState()));
         return entity->GetId();
     }
 
@@ -936,7 +1273,9 @@ namespace LDMChronoVehicle
             return;
         }
 
-        entity->Activate();
+        AzFramework::GameEntityContextRequestBus::Broadcast(
+            &AzFramework::GameEntityContextRequestBus::Events::ActivateGameEntity,
+            entity->GetId());
         AZ::Transform terrainPose = AZ::Transform::CreateTranslation(
             AZ::Vector3(0.0f, 0.0f,
                 static_cast<float>(TerrainFixtureConfig::SurfaceZMeters)));
@@ -1000,13 +1339,36 @@ namespace LDMChronoVehicle
             return;
         }
 
-        entity->Activate();
+        AzFramework::GameEntityContextRequestBus::Broadcast(
+            &AzFramework::GameEntityContextRequestBus::Events::ActivateGameEntity,
+            entity->GetId());
         Camera::CameraRequestBus::Event(
             entity->GetId(), &Camera::CameraRequestBus::Events::MakeActiveView);
         m_clientCameraEntityId = entity->GetId();
         AZ_Printf("LDMChronoVehicle",
             "T0 cockpit camera created: camera_component=true target_vehicle=%llu.\n",
             static_cast<unsigned long long>(ChronoState::PlayerVehicleId));
+
+#if defined(IMGUI_ENABLED)
+        // The ImGui manager only runs update listeners while its display
+        // state is Visible; request it once so the combat HUD (reticle and
+        // ammunition readout) renders over the cockpit view. Game input is
+        // read directly from Win32, so ImGui consuming O3DE input events
+        // does not affect driving or firing controls.
+        if (!m_hudDisplayRequested)
+        {
+            m_hudDisplayRequested = true;
+            // The engine's debug console auto-shows whenever ImGui is
+            // visible; keep the cockpit view clear of it.
+            if (auto* console = AZ::Interface<AZ::IConsole>::Get())
+            {
+                console->PerformCommand("bg_showDebugConsole false");
+            }
+            ImGui::ImGuiManagerBus::Broadcast(
+                &ImGui::IImGuiManager::SetDisplayState, ImGui::DisplayState::Visible);
+            AZ_Printf("LDMChronoVehicle", "T2 combat HUD requested ImGui overlay.\n");
+        }
+#endif
     }
 
     void LDMChronoVehicleSystemComponent::DestroyClientPresentation()
@@ -1018,6 +1380,20 @@ namespace LDMChronoVehicle
                 m_clientCameraEntityId);
             m_clientCameraEntityId.SetInvalid();
         }
+        for (const auto& [vehicleId, partEntityIds] : m_clientVehiclePartEntities)
+        {
+            AZ_UNUSED(vehicleId);
+            for (const AZ::EntityId& partEntityId : partEntityIds)
+            {
+                if (partEntityId.IsValid())
+                {
+                    AzFramework::GameEntityContextRequestBus::Broadcast(
+                        &AzFramework::GameEntityContextRequestBus::Events::DestroyGameEntity,
+                        partEntityId);
+                }
+            }
+        }
+        m_clientVehiclePartEntities.clear();
         for (const auto& [vehicleId, entityId] : m_clientVehicleEntities)
         {
             AZ_UNUSED(vehicleId);
@@ -1037,5 +1413,77 @@ namespace LDMChronoVehicle
             m_clientTerrainEntityId.SetInvalid();
         }
     }
+
+#if defined(IMGUI_ENABLED)
+    void LDMChronoVehicleSystemComponent::OnImGuiUpdate()
+    {
+        // Draw only once the first-person cockpit view is live.
+        if (!m_clientCameraEntityId.IsValid())
+        {
+            return;
+        }
+
+        const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+        ImDrawList* drawList = ImGui::GetForegroundDrawList();
+        const ImVec2 center(displaySize.x * 0.5f, displaySize.y * 0.5f);
+
+        // Fixed-forward reticle: the rifles are hull-fixed, so the aim
+        // reference is the vehicle forward axis at screen center (exact at
+        // zero head-look yaw; the 3D iron sights remain the true reference).
+        const ImU32 reticleColor = IM_COL32(255, 80, 40, 220);
+        constexpr float gap = 6.0f;
+        constexpr float arm = 18.0f;
+        drawList->AddCircle(center, 10.0f, reticleColor, 24, 1.5f);
+        drawList->AddLine(
+            ImVec2(center.x - gap - arm, center.y), ImVec2(center.x - gap, center.y),
+            reticleColor, 2.0f);
+        drawList->AddLine(
+            ImVec2(center.x + gap, center.y), ImVec2(center.x + gap + arm, center.y),
+            reticleColor, 2.0f);
+        drawList->AddLine(
+            ImVec2(center.x, center.y - gap - arm), ImVec2(center.x, center.y - gap),
+            reticleColor, 2.0f);
+        drawList->AddLine(
+            ImVec2(center.x, center.y + gap), ImVec2(center.x, center.y + gap + arm),
+            reticleColor, 2.0f);
+
+        // Weapon and vehicle status panel, bottom left.
+        static const char* SlotNames[6] = {
+            "FRONT L", "FRONT R", "CENTRAL", "LEFT", "RIGHT", "REAR"
+        };
+        static const char* ConditionNames[4] = {
+            "INTACT", "DAMAGED", "CRITICAL", "DESTROYED"
+        };
+
+        ImGui::SetNextWindowPos(ImVec2(20.0f, displaySize.y - 170.0f));
+        ImGui::SetNextWindowBgAlpha(0.35f);
+        if (ImGui::Begin("CombatHud", nullptr,
+                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+        {
+            for (int slot = 0; slot < 6; ++slot)
+            {
+                if (m_hudEquipped[slot] == 0)
+                {
+                    continue;
+                }
+                const ImVec4 ammoColor = m_hudAmmo[slot] > 0
+                    ? ImVec4(0.6f, 1.0f, 0.6f, 1.0f)
+                    : ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
+                ImGui::TextColored(ammoColor, "%s RIFLE  %u", SlotNames[slot],
+                    m_hudAmmo[slot]);
+            }
+
+            const AZ::u32 conditionIndex = m_hudConditionState < 4
+                ? m_hudConditionState : 3;
+            ImGui::Text("CONDITION  %s (%.0f%%)", ConditionNames[conditionIndex],
+                static_cast<double>(m_hudCondition * 100.0f));
+            ImGui::Text("FUEL       %.0f%%",
+                static_cast<double>(m_hudFuelRatio * 100.0f));
+        }
+        ImGui::End();
+    }
+#endif
 
 } // namespace LDMChronoVehicle

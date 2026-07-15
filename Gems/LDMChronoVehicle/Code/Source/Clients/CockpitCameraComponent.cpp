@@ -9,6 +9,7 @@
 #endif
 
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
+#include <Simulation/ChassisPresentationConfig.h>
 
 #include <AzCore/Asset/AssetManagerBus.h>
 #include <AzCore/Component/TransformBus.h>
@@ -55,13 +56,13 @@ namespace LDMChronoVehicle
 
     AZ::Transform CockpitCameraComponent::GetCockpitOffset()
     {
-        // Driver eye point of the T0 fixture vehicle: forward of the chassis
-        // reference origin, offset to the left seat, above the floor.
+        // Driver eye point from the shared chassis contract: forward of the
+        // chassis reference origin, offset to the left seat, above the floor.
         // O3DE cameras look along local +Y while the Chrono vehicle's forward
         // axis is +X. Rotate the camera -90 degrees about Z to align them.
         return AZ::Transform::CreateFromQuaternionAndTranslation(
             AZ::Quaternion::CreateRotationZ(-AZ::Constants::HalfPi),
-            AZ::Vector3(0.4f, 0.4f, 1.1f));
+            ChassisPresentationConfig::DriverEyeOffset);
     }
 
     void CockpitCameraComponent::Init()
@@ -92,6 +93,12 @@ namespace LDMChronoVehicle
             return;
         }
         m_inventoryLogged = true;
+
+        // Cockpit geometry (dash, pillars, sights) sits closer than the
+        // default near plane; pull it in so the cabin interior renders.
+        Camera::CameraRequestBus::Event(GetEntityId(),
+            &Camera::CameraRequestBus::Events::SetNearClipDistance,
+            ChassisPresentationConfig::CameraNearClipMeters);
 
         // T0-CAM-003 input-action inventory: enumerate every input-binding
         // asset in the catalog. The gate requires zero player-accessible

@@ -5,10 +5,17 @@
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/Component/EntityId.h>
+#include <AzCore/Math/Transform.h>
+#include <AzCore/Math/Vector3.h>
 #include <AzCore/std/containers/unordered_map.h>
+#include <AzCore/std/containers/vector.h>
 #include <AzCore/std/smart_ptr/unique_ptr.h>
 #include <LDMChronoVehicle/LDMChronoVehicleBus.h>
 #include <Clients/PoseSnapshots.h>
+
+#if defined(IMGUI_ENABLED)
+#include <ImGuiBus.h>
+#endif
 
 namespace LDMChronoVehicle
 {
@@ -16,6 +23,9 @@ namespace LDMChronoVehicle
         : public AZ::Component
         , protected LDMChronoVehicleRequestBus::Handler
         , protected AZ::TickBus::Handler
+#if defined(IMGUI_ENABLED)
+        , protected ImGui::ImGuiUpdateListenerBus::Handler
+#endif
     {
     public:
         AZ_COMPONENT_DECL(LDMChronoVehicleSystemComponent);
@@ -42,10 +52,21 @@ namespace LDMChronoVehicle
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
         int GetTickOrder() override;
         void OnClientTick();
-        AZ::EntityId CreateClientVehiclePresentation(VehicleId vehicleId);
+        AZ::EntityId CreateClientVehiclePresentation(VehicleId vehicleId, const PoseSnapshotPacket& packet);
+        AZ::EntityId CreateVehiclePartEntity(
+            AZ::EntityId parentEntityId,
+            const char* partName,
+            const char* modelAssetPath,
+            const AZ::Transform& localTransform,
+            const AZ::Vector3& partSizeMeters);
         void EnsureClientTerrainPresentation();
         void EnsureClientCockpitCamera(AZ::EntityId playerVehicleEntityId);
         void DestroyClientPresentation();
+
+#if defined(IMGUI_ENABLED)
+        // ImGui::ImGuiUpdateListenerBus: fixed-forward reticle and weapon HUD.
+        void OnImGuiUpdate() override;
+#endif
 
         ////////////////////////////////////////////////////////////////////////
         // AZ::Component interface implementation
@@ -63,8 +84,20 @@ namespace LDMChronoVehicle
         AZStd::unique_ptr<VehicleInputPublisher> m_inputPublisher;
         AZStd::unique_ptr<VehicleInputReceiver> m_inputReceiver;
         AZStd::unordered_map<VehicleId, AZ::EntityId> m_clientVehicleEntities;
+        // Child part entities per vehicle rig (engine box, cabin panels,
+        // cargo tray, wheels, weapon visuals). Destroyed with the rig.
+        AZStd::unordered_map<VehicleId, AZStd::vector<AZ::EntityId>> m_clientVehiclePartEntities;
         AZ::EntityId m_clientTerrainEntityId;
         AZ::EntityId m_clientCameraEntityId;
+
+        // Latest player HUD state mirrored from received snapshots.
+        AZ::u32 m_hudAmmo[6] = { 0, 0, 0, 0, 0, 0 };
+        AZ::u8 m_hudEquipped[6] = { 0, 0, 0, 0, 0, 0 };
+        AZ::u32 m_hudConditionState = 0;
+        float m_hudCondition = 1.0f;
+        float m_hudFuelRatio = 1.0f;
+        bool m_hudDisplayRequested = false;
+        AZ::u32 m_cockpitScreenshotsTaken = 0;
         double m_nextSnapshotTraceTimeSeconds = 0.0;
         float m_maxClientProxyPositionErrorMeters = 0.0f;
         float m_maxClientProxyRotationErrorDegrees = 0.0f;
