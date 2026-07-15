@@ -6,6 +6,7 @@
 
 #include <AzCore/EBus/EBus.h>
 #include <AzCore/Interface/Interface.h>
+#include <AzCore/Math/Transform.h>
 
 namespace LDMChronoVehicle
 {
@@ -18,6 +19,11 @@ namespace LDMChronoVehicle
         virtual VehicleReservationResult ReserveActiveVehicle(VehicleId vehicleId) = 0;
         virtual bool ReleaseActiveVehicle(VehicleId vehicleId) = 0;
         virtual SimulationTelemetry GetSimulationTelemetry() const = 0;
+
+        // Returns the authoritative chassis pose of an active vehicle in the
+        // shared Z-up world frame. False when this process is not
+        // authoritative or the vehicle is not active.
+        virtual bool GetActiveVehiclePose(VehicleId vehicleId, AZ::Transform& outPose) const = 0;
     };
 
     class LDMChronoVehicleBusTraits

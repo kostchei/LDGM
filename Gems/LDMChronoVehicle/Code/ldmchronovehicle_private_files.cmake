@@ -4,6 +4,8 @@ set(FILES
     Source/LDMChronoVehicleModuleInterface.h
     Source/Clients/LDMChronoVehicleSystemComponent.cpp
     Source/Clients/LDMChronoVehicleSystemComponent.h
+    Source/Clients/VehicleProxyComponent.cpp
+    Source/Clients/VehicleProxyComponent.h
     Source/Simulation/ActiveVehicleRegistry.cpp
     Source/Simulation/ActiveVehicleRegistry.h
     Source/Simulation/CoordinateConversion.cpp

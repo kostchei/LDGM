@@ -1,11 +1,15 @@
 
 #include "LDMChronoVehicleSystemComponent.h"
 
+#include <Clients/VehicleProxyComponent.h>
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
 #include <Simulation/ActiveVehicleRegistry.h>
 #include <Simulation/FixedStepClock.h>
 #include <Simulation/TerrainFixtureConfig.h>
 #include <Simulation/VehicleFixture.h>
+
+#include <AzCore/Component/Entity.h>
+#include <AzFramework/Components/TransformComponent.h>
 
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/Console/IConsole.h>
@@ -202,11 +206,25 @@ namespace LDMChronoVehicle
                 m_chronoState->m_telemetry.m_activeVehicleCount,
                 MaxActiveVehicles);
             AZ::TickBus::Handler::BusConnect();
+
+            // Presentation proxy for the fixture vehicle. On the T0 local
+            // integration host it lives in the authoritative process; the
+            // networked client gains the same entity via snapshots later.
+            m_proxyEntity = AZStd::make_unique<AZ::Entity>("T0VehicleProxy");
+            m_proxyEntity->CreateComponent<AzFramework::TransformComponent>();
+            m_proxyEntity->CreateComponent<VehicleProxyComponent>(ChronoState::FixtureVehicleId);
+            m_proxyEntity->Init();
+            m_proxyEntity->Activate();
         }
     }
 
     void LDMChronoVehicleSystemComponent::Deactivate()
     {
+        if (m_proxyEntity)
+        {
+            m_proxyEntity->Deactivate();
+            m_proxyEntity.reset();
+        }
         AZ::TickBus::Handler::BusDisconnect();
         m_chronoState.reset();
         LDMChronoVehicleRequestBus::Handler::BusDisconnect();
@@ -241,6 +259,27 @@ namespace LDMChronoVehicle
     SimulationTelemetry LDMChronoVehicleSystemComponent::GetSimulationTelemetry() const
     {
         return m_chronoState ? m_chronoState->m_telemetry : SimulationTelemetry{};
+    }
+
+    bool LDMChronoVehicleSystemComponent::GetActiveVehiclePose(
+        VehicleId vehicleId, AZ::Transform& outPose) const
+    {
+        if (!m_chronoState || !m_chronoState->m_vehicleFixture ||
+            !m_chronoState->m_activeVehicles.Contains(vehicleId) ||
+            vehicleId != ChronoState::FixtureVehicleId)
+        {
+            return false;
+        }
+
+        outPose = m_chronoState->m_vehicleFixture->GetChassisPose();
+        return true;
+    }
+
+    int LDMChronoVehicleSystemComponent::GetTickOrder()
+    {
+        // Step the authoritative simulation at the physics slot so proxy
+        // components (TICK_ATTACHMENT) consume the fresh pose the same frame.
+        return AZ::TICK_PHYSICS;
     }
 
     void LDMChronoVehicleSystemComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)

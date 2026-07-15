@@ -16,4 +16,7 @@ namespace LDMChronoVehicle
 
     // Interface TypeIds
     inline constexpr const char* LDMChronoVehicleRequestsTypeId = "{3D6EEE5F-6B74-4011-BEA7-2C2634D101C6}";
+
+    // Entity Component TypeIds
+    inline constexpr const char* VehicleProxyComponentTypeId = "{7E3A2A41-58D0-4A5E-9B0C-2F6D1C6B8A57}";
 } // namespace LDMChronoVehicle

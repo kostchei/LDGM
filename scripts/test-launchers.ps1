@@ -12,8 +12,10 @@ $environment = Enter-LDGMEnvironment
 
 $launcherDirectory = Join-Path $environment.RepoRoot "build\windows\bin\$Configuration"
 $launchers = @(
-    @{ Name = "LDGM.GameLauncher.exe"; Log = "Game.log"; Role = "role=client-linkage" },
-    @{ Name = "LDGM.ServerLauncher.exe"; Log = "Server.log"; Role = "role=authoritative" }
+    @{ Name = "LDGM.GameLauncher.exe"; Log = "Game.log"
+       Expected = @("role=client-linkage") },
+    @{ Name = "LDGM.ServerLauncher.exe"; Log = "Server.log"
+       Expected = @("role=authoritative", "T0 transform trace", "T0 proxy trace") }
 )
 
 foreach ($launcher in $launchers) {
@@ -42,24 +44,29 @@ foreach ($launcher in $launchers) {
             if (-not $smokeObserved -and (Test-Path -LiteralPath $logPath)) {
                 $log = Get-Item -LiteralPath $logPath
                 if ($log.LastWriteTime -ge $startedAt) {
-                    $lifecycleObserved = Select-String -LiteralPath $logPath `
+                    $allObserved = Select-String -LiteralPath $logPath `
                         -SimpleMatch "Chrono Core/Vehicle lifecycle smoke passed" `
                         -Quiet
-                    $roleObserved = Select-String -LiteralPath $logPath `
-                        -SimpleMatch $launcher.Role `
-                        -Quiet
-                    $smokeObserved = $lifecycleObserved -and $roleObserved
+                    foreach ($expected in $launcher.Expected) {
+                        if ($allObserved) {
+                            $allObserved = Select-String -LiteralPath $logPath `
+                                -SimpleMatch $expected `
+                                -Quiet
+                        }
+                    }
+                    $smokeObserved = $allObserved
                 }
             }
 
             Start-Sleep -Milliseconds 250
         }
 
+        $expectedList = $launcher.Expected -join "', '"
         if (-not $smokeObserved) {
-            throw "$($launcher.Name) remained alive but did not log the expected Chrono lifecycle role '$($launcher.Role)'."
+            throw "$($launcher.Name) remained alive but did not log all expected markers: '$expectedList'."
         }
 
-        Write-Host "$($launcher.Name) remained alive for $ProbeSeconds seconds and logged '$($launcher.Role)'."
+        Write-Host "$($launcher.Name) remained alive for $ProbeSeconds seconds and logged '$expectedList'."
     }
     finally {
         $process.Refresh()

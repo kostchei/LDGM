@@ -5,6 +5,7 @@
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
 
 #include <Clients/LDMChronoVehicleSystemComponent.h>
+#include <Clients/VehicleProxyComponent.h>
 
 namespace LDMChronoVehicle
 {
@@ -21,6 +22,7 @@ namespace LDMChronoVehicle
         // This happens through the [MyComponent]::Reflect() function.
         m_descriptors.insert(m_descriptors.end(), {
             LDMChronoVehicleSystemComponent::CreateDescriptor(),
+            VehicleProxyComponent::CreateDescriptor(),
             });
     }
 

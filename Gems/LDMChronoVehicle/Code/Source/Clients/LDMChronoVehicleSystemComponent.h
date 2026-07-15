@@ -5,7 +5,13 @@
 
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TickBus.h>
+#include <AzCore/std/smart_ptr/unique_ptr.h>
 #include <LDMChronoVehicle/LDMChronoVehicleBus.h>
+
+namespace AZ
+{
+    class Entity;
+} // namespace AZ
 
 namespace LDMChronoVehicle
 {
@@ -33,9 +39,11 @@ namespace LDMChronoVehicle
         VehicleReservationResult ReserveActiveVehicle(VehicleId vehicleId) override;
         bool ReleaseActiveVehicle(VehicleId vehicleId) override;
         SimulationTelemetry GetSimulationTelemetry() const override;
+        bool GetActiveVehiclePose(VehicleId vehicleId, AZ::Transform& outPose) const override;
         ////////////////////////////////////////////////////////////////////////
 
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
+        int GetTickOrder() override;
 
         ////////////////////////////////////////////////////////////////////////
         // AZ::Component interface implementation
@@ -47,6 +55,7 @@ namespace LDMChronoVehicle
     private:
         struct ChronoState;
         std::unique_ptr<ChronoState> m_chronoState;
+        AZStd::unique_ptr<AZ::Entity> m_proxyEntity;
     };
 
 } // namespace LDMChronoVehicle

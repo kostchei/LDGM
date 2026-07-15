@@ -27,7 +27,8 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | T0 authoritative runtime adapter | Complete | Server-only 5 ms fixed stepping; eight-step catch-up bound; public plain-data telemetry and capacity API; both launcher probes logged the correct role (client-linkage / authoritative) |
 | T0 coordinate conversion boundary | Complete | Shared right-handed Z-up frame (Chrono default ISO); component-wise pose/vector/quaternion conversion in `Simulation/CoordinateConversion`; GoogleTests include cross-engine rotation agreement |
 | T0 vehicle and shared-terrain fixture | Complete | Programmatic HMMWV on the versioned terrain patch (checksum-logged); scripted settle/ramp/drive; 14/14 GoogleTests; server probe logs per-second transform traces at real-time 200 Hz stepping |
-| T0 integration implementation | In progress | Chrono-side simulation complete; O3DE render proxy, cockpit camera and client snapshot evidence pending |
+| T0 render proxy | Complete | `VehicleProxyComponent` entity consumes the authoritative pose after each simulation tick; probe log shows Chrono-versus-proxy error 0.000 m / max 0.040° against the 0.05 m / 1° gate |
+| T0 integration implementation | In progress | Chrono simulation and render proxy complete; cockpit camera and client snapshot evidence pending |
 | T0 acceptance gate | Not started | `test_goals/t0_integration_spike.json` |
 | T1–T7 | Not started | Must follow preceding tranche gates |
 
@@ -86,11 +87,13 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 - Reserved the fixture vehicle through the active registry before Chrono vehicle creation, integrated fixture stepping into the server fixed-step loop, and published vehicle pose, speed and terrain checksum through the Chrono-free telemetry.
 - Verified 14/14 Gem GoogleTests (2.5 s HMMWV simulation runs in ~65 ms) and captured per-second `T0 transform trace` lines in the server probe log: the vehicle settles from 1.0 m to its 0.59 m ride height and accelerates to 17.8 m/s while the server sustains real-time 5 ms stepping.
 
+- Added the public `GetActiveVehiclePose` API and the `VehicleProxyComponent` presentation proxy (ticks after the physics-slot simulation, never a second rigid body), spawned programmatically as the `T0VehicleProxy` entity on the authoritative host.
+- Extended the launcher probe to require `role=authoritative`, `T0 transform trace` and `T0 proxy trace` in the server log; captured proxy traces timestamped in simulation time with 0.000 m position error and 0.040° maximum rotation error.
+
 ## Next checkpoint
 
-1. Add the O3DE render proxy entity that consumes the authoritative pose telemetry and compare Chrono-versus-proxy transforms for T0-PHYS-002.
-2. Attach the first-person cockpit camera to the vehicle proxy and produce the input-action inventory for T0-CAM-003.
-3. Add the headless host-to-client snapshot path required by the T0 deliverables.
+1. Attach the first-person cockpit camera to the vehicle proxy and produce the input-action inventory for T0-CAM-003.
+2. Add the headless host-to-client snapshot path required by the T0 deliverables.
 
 ## Working rules
 
