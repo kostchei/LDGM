@@ -23,7 +23,8 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | Standalone Chrono consumer smoke | Complete | Installed-package `find_package(Chrono COMPONENTS Vehicle)`; 120 dynamics steps; 1/1 CTest passed |
 | O3DE project and Gem scaffolding | Complete | Minimal project Gem plus Windows-only `LDMChronoVehicle` Gem |
 | O3DE–Chrono Gem linkage | Complete | Private imported targets; Profile client/server link; both 15-second launcher probes log the lifecycle smoke result |
-| T0 integration implementation | In progress | Build/link subgate complete; fixed-step ownership, coordinate/terrain sync, cockpit camera and capacity evidence pending |
+| T0 fixed-step and active registry primitives | Complete | 6 GoogleTests pass; bounded catch-up and dropped-time reporting; 30 accepted, 31st rejected, release idempotent |
+| T0 integration implementation | In progress | Build/link and core primitives complete; runtime ownership, coordinate/terrain sync and cockpit camera evidence pending |
 | T0 acceptance gate | Not started | `test_goals/t0_integration_spike.json` |
 | T1–T7 | Not started | Must follow preceding tranche gates |
 
@@ -66,11 +67,15 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 - Added a lifecycle smoke that selects the Vehicle Y-up frame, creates an NSC system, advances one 5 ms step and queues its validated result until the engine log is available.
 - Added a processed runtime bootstrap override so preprocessed client/server launches do not require a live Asset Processor connection.
 - Rebuilt the Profile GameLauncher and ServerLauncher successfully, then passed a reusable bounded runtime test in which both roles remained alive for 15 seconds and logged `Chrono Core/Vehicle lifecycle smoke passed`.
+- Added a fixed-capacity active-vehicle registry with stable insertion order, invalid/duplicate detection, a hard maximum of 30 and idempotent release.
+- Added a deterministic fixed-step accumulator with bounded catch-up, explicit dropped-time telemetry, fractional remainder preservation and invalid elapsed-time rejection.
+- Enabled the generated Gem's Windows client tests and added 6 passing GoogleTests for the registry and clock contracts.
+- Corrected the compiler-isolation definition so hyphenated sources such as `gtest-all.cc` receive a unique command line without creating an invalid preprocessor macro name.
 
 ## Next checkpoint
 
-1. Define the Chrono-private authoritative simulation adapter and a deterministic fixed-step clock with timing telemetry.
-2. Add the active-vehicle registry with a hard capacity of 30, deterministic overflow rejection and idempotent release.
+1. Integrate the fixed-step clock and active-vehicle registry into the Chrono-private authoritative simulation adapter.
+2. Publish step-count, step-time, dropped-time and active-count telemetry through the Gem boundary without exposing Chrono types.
 3. Define and test the O3DE/Chrono axis, pose and velocity conversion boundary.
 4. Add the generic vehicle and shared-terrain fixture needed for T0 transform and terrain-alignment evidence.
 

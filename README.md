@@ -35,6 +35,7 @@ The checked-in scripts assume no global engine or CMake registration. From Power
 .\scripts\test-chrono.ps1
 .\scripts\configure-project.ps1
 .\scripts\build-project.ps1
+.\scripts\test-vehicle-gem.ps1
 .\scripts\process-assets.ps1
 .\scripts\test-launchers.ps1
 ```
