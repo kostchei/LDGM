@@ -21,6 +21,16 @@ namespace chrono
 
 namespace LDMChronoVehicle
 {
+    struct LiveVehicleInputs
+    {
+        double m_steering = 0.0;
+        double m_throttle = 0.0;
+        double m_braking = 0.0;
+        bool m_handbrake = false;
+        int m_driveMode = 1; // -1 = Reverse, 0 = Neutral, 1 = Forward
+        bool m_engineStarted = true;
+    };
+
     struct VehicleFixtureConfig
     {
         double m_spawnX = 0.0;
@@ -51,10 +61,16 @@ namespace LDMChronoVehicle
         AZ::Transform GetChassisPose() const;
         double GetForwardSpeedMetersPerSecond() const;
 
+        void SetLiveInputs(const LiveVehicleInputs& inputs);
+        LiveVehicleInputs GetLiveInputs() const;
+
     private:
         double m_fixedStepSeconds = 0.0;
         chrono::vehicle::RigidTerrain& m_terrain;
         VehicleFixtureConfig m_config;
         std::unique_ptr<chrono::vehicle::hmmwv::HMMWV_Full> m_vehicle;
+
+        LiveVehicleInputs m_liveInputs;
+        bool m_useLiveInputs = false;
     };
 } // namespace LDMChronoVehicle

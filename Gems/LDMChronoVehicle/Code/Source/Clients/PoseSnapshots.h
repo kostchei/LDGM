@@ -81,4 +81,64 @@ namespace LDMChronoVehicle
         AZ::u64 m_receivedCount = 0;
         AZ::u64 m_rejectedCount = 0;
     };
+
+    namespace InputConfig
+    {
+        inline constexpr AZ::u16 ServerPort = 33457;
+        inline constexpr AZ::u16 ClientPort = 33458;
+    } // namespace InputConfig
+
+    struct VehicleInputPacket
+    {
+        static constexpr AZ::u32 ExpectedMagic = 0x4C444749; // 'LDGI'
+        static constexpr AZ::u32 ExpectedVersion = 1;
+
+        AZ::u32 m_magic = ExpectedMagic;
+        AZ::u32 m_version = ExpectedVersion;
+        double m_simulationTimeSeconds = 0.0;
+        AZ::u64 m_vehicleId = InvalidVehicleId;
+
+        double m_steering = 0.0;
+        double m_throttle = 0.0;
+        double m_braking = 0.0;
+        AZ::u32 m_handbrake = 0;
+        AZ::s32 m_driveMode = 1;
+        AZ::u32 m_engineStarted = 1;
+        AZ::u32 m_reserved = 0;
+
+        bool IsValid() const;
+    };
+
+    class VehicleInputPublisher final
+    {
+    public:
+        VehicleInputPublisher();
+        ~VehicleInputPublisher();
+
+        bool IsReady() const;
+        void Publish(double simulationTimeSeconds, VehicleId vehicleId,
+            double steering, double throttle, double braking, bool handbrake, int driveMode, bool engineStarted);
+        AZ::u64 GetSentCount() const;
+
+    private:
+        AZ::s32 m_socket = -1; // AZSOCKET
+        AZ::u64 m_sentCount = 0;
+    };
+
+    class VehicleInputReceiver final
+    {
+    public:
+        VehicleInputReceiver();
+        ~VehicleInputReceiver();
+
+        bool IsReady() const;
+        bool ReceiveLatest(VehicleId vehicleId, VehicleInputPacket& outPacket);
+        AZ::u64 GetReceivedCount() const;
+        AZ::u64 GetRejectedCount() const;
+
+    private:
+        AZ::s32 m_socket = -1; // AZSOCKET
+        AZ::u64 m_receivedCount = 0;
+        AZ::u64 m_rejectedCount = 0;
+    };
 } // namespace LDMChronoVehicle

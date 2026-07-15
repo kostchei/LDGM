@@ -8,6 +8,7 @@
 #include <chrono/physics/ChSystem.h>
 #include <chrono_models/vehicle/hmmwv/HMMWV.h>
 #include <chrono_vehicle/terrain/RigidTerrain.h>
+#include <chrono_vehicle/ChTransmission.h>
 
 #include <algorithm>
 #include <cmath>
@@ -76,8 +77,47 @@ namespace LDMChronoVehicle
 
     void VehicleFixture::Synchronize(double simulationTimeSeconds)
     {
-        const chrono::vehicle::DriverInputs inputs =
-            ScriptedInputsAtTime(simulationTimeSeconds, m_config);
+        chrono::vehicle::DriverInputs inputs;
+        if (m_useLiveInputs)
+        {
+            inputs.m_steering = m_liveInputs.m_steering;
+            inputs.m_throttle = m_liveInputs.m_engineStarted ? m_liveInputs.m_throttle : 0.0;
+            inputs.m_braking = m_liveInputs.m_braking;
+            inputs.m_clutch = 0.0;
+            if (m_liveInputs.m_handbrake)
+            {
+                inputs.m_braking = std::max(inputs.m_braking, 1.0);
+            }
+
+            if (m_vehicle)
+            {
+                auto transmission = m_vehicle->GetVehicle().GetTransmission();
+                if (transmission)
+                {
+                    auto autoTrans = transmission->asAutomatic();
+                    if (autoTrans)
+                    {
+                        if (m_liveInputs.m_driveMode == 1)
+                        {
+                            autoTrans->SetDriveMode(chrono::vehicle::ChAutomaticTransmission::DriveMode::FORWARD);
+                        }
+                        else if (m_liveInputs.m_driveMode == -1)
+                        {
+                            autoTrans->SetDriveMode(chrono::vehicle::ChAutomaticTransmission::DriveMode::REVERSE);
+                        }
+                        else
+                        {
+                            autoTrans->SetDriveMode(chrono::vehicle::ChAutomaticTransmission::DriveMode::NEUTRAL);
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            inputs = ScriptedInputsAtTime(simulationTimeSeconds, m_config);
+        }
+
         m_vehicle->Synchronize(simulationTimeSeconds, inputs, m_terrain);
     }
 
@@ -96,5 +136,16 @@ namespace LDMChronoVehicle
     double VehicleFixture::GetForwardSpeedMetersPerSecond() const
     {
         return m_vehicle->GetVehicle().GetSpeed();
+    }
+
+    void VehicleFixture::SetLiveInputs(const LiveVehicleInputs& inputs)
+    {
+        m_liveInputs = inputs;
+        m_useLiveInputs = true;
+    }
+
+    LiveVehicleInputs VehicleFixture::GetLiveInputs() const
+    {
+        return m_liveInputs;
     }
 } // namespace LDMChronoVehicle

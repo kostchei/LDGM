@@ -14,15 +14,55 @@ namespace LDMChronoVehicle
     AZ::u32 CalculateTerrainFixtureChecksum()
     {
         const AZStd::string canonical = AZStd::string::format(
-            "terrain-fixture|v%u|%.6f|%.6f|%.6f|%.6f|%.6f|%.6f",
+            "terrain-fixture|v%u|%.6f|%.6f|%.6f|%.6f|%.6f|%.6f|%.6f|%.6f|%.6f",
             TerrainFixtureConfig::Version,
             TerrainFixtureConfig::LengthMeters,
             TerrainFixtureConfig::WidthMeters,
             TerrainFixtureConfig::SurfaceZMeters,
             TerrainFixtureConfig::ThicknessMeters,
-            TerrainFixtureConfig::Friction,
-            TerrainFixtureConfig::Restitution);
+            TerrainFixtureConfig::HardRoadFriction,
+            TerrainFixtureConfig::BrokenRoadFriction,
+            TerrainFixtureConfig::GravelFriction,
+            TerrainFixtureConfig::FirmSandFriction,
+            TerrainFixtureConfig::DeepSandFriction);
         return AZ::Crc32(canonical.c_str());
+    }
+
+    namespace TerrainFixtureConfig
+    {
+        int GetLaneIndex(double y)
+        {
+            double clampedY = std::max(-99.999, std::min(99.999, y));
+            return static_cast<int>((clampedY + 100.0) / LaneWidthMeters);
+        }
+
+        double GetLaneFriction(double y)
+        {
+            int index = GetLaneIndex(y);
+            switch (index)
+            {
+            case 0: return HardRoadFriction;
+            case 1: return BrokenRoadFriction;
+            case 2: return GravelFriction;
+            case 3: return FirmSandFriction;
+            case 4: return DeepSandFriction;
+            default: return GravelFriction;
+            }
+        }
+
+        const char* GetLaneName(double y)
+        {
+            int index = GetLaneIndex(y);
+            switch (index)
+            {
+            case 0: return "Hard Road";
+            case 1: return "Broken Road";
+            case 2: return "Gravel";
+            case 3: return "Firm Sand";
+            case 4: return "Deep Sand";
+            default: return "Gravel";
+            }
+        }
     }
 
     bool TerrainAlignmentMeasurement::Passes(double toleranceMeters) const
@@ -57,18 +97,33 @@ namespace LDMChronoVehicle
 
     TerrainFixture::TerrainFixture(chrono::ChSystem& system)
     {
-        auto material = chrono_types::make_shared<chrono::ChContactMaterialNSC>();
-        material->SetFriction(static_cast<float>(TerrainFixtureConfig::Friction));
-        material->SetRestitution(static_cast<float>(TerrainFixtureConfig::Restitution));
-
         m_terrain = std::make_unique<chrono::vehicle::RigidTerrain>(&system);
-        m_terrain->AddPatch(material,
-            chrono::ChCoordsysd(
-                chrono::ChVector3d(0.0, 0.0, TerrainFixtureConfig::SurfaceZMeters), chrono::QUNIT),
-            TerrainFixtureConfig::LengthMeters,
-            TerrainFixtureConfig::WidthMeters,
-            TerrainFixtureConfig::ThicknessMeters,
-            false, 1.0, /*visualization*/ false);
+
+        double frictions[TerrainFixtureConfig::NumLanes] = {
+            TerrainFixtureConfig::HardRoadFriction,
+            TerrainFixtureConfig::BrokenRoadFriction,
+            TerrainFixtureConfig::GravelFriction,
+            TerrainFixtureConfig::FirmSandFriction,
+            TerrainFixtureConfig::DeepSandFriction
+        };
+
+        for (int i = 0; i < TerrainFixtureConfig::NumLanes; ++i)
+        {
+            auto material = chrono_types::make_shared<chrono::ChContactMaterialNSC>();
+            material->SetFriction(static_cast<float>(frictions[i]));
+            material->SetRestitution(static_cast<float>(TerrainFixtureConfig::DefaultRestitution));
+
+            double yCenter = -80.0 + i * TerrainFixtureConfig::LaneWidthMeters;
+
+            m_terrain->AddPatch(material,
+                chrono::ChCoordsysd(
+                    chrono::ChVector3d(0.0, yCenter, TerrainFixtureConfig::SurfaceZMeters), chrono::QUNIT),
+                TerrainFixtureConfig::LengthMeters,
+                TerrainFixtureConfig::LaneWidthMeters,
+                TerrainFixtureConfig::ThicknessMeters,
+                false, 1.0, /*visualization*/ false);
+        }
+
         m_terrain->Initialize();
     }
 

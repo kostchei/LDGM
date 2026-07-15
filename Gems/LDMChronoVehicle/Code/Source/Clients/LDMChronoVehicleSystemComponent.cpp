@@ -1,6 +1,14 @@
 
 #include "LDMChronoVehicleSystemComponent.h"
 
+#if defined(AZ_PLATFORM_WINDOWS)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <xinput.h>
+#endif
+
 #include <Clients/CockpitCameraComponent.h>
 #include <Clients/PoseSnapshots.h>
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
@@ -248,6 +256,7 @@ namespace LDMChronoVehicle
         if (isAuthoritative)
         {
             m_chronoState = std::make_unique<ChronoState>(ChronoState::Role::Authoritative);
+            m_inputReceiver = AZStd::make_unique<VehicleInputReceiver>();
             AZ_Printf("LDMChronoVehicle",
                 "T0 vehicle fixture created (terrain checksum=0x%08X, vehicles=%u/%u).\n",
                 m_chronoState->m_telemetry.m_terrainChecksum,
@@ -270,6 +279,7 @@ namespace LDMChronoVehicle
             // entity context after the first snapshots arrive, when the
             // Atom scene and level are available.
             m_snapshotReceiver = AZStd::make_unique<PoseSnapshotReceiver>();
+            m_inputPublisher = AZStd::make_unique<VehicleInputPublisher>();
             AZ::TickBus::Handler::BusConnect();
         }
     }
@@ -278,6 +288,8 @@ namespace LDMChronoVehicle
     {
         DestroyClientPresentation();
         m_snapshotReceiver.reset();
+        m_inputPublisher.reset();
+        m_inputReceiver.reset();
         AZ::TickBus::Handler::BusDisconnect();
         m_chronoState.reset();
         LDMChronoVehicleRequestBus::Handler::BusDisconnect();
@@ -358,6 +370,29 @@ namespace LDMChronoVehicle
                 "T0 fixed-step clock primed: ignored_initial_delta_s=%.6f.\n",
                 static_cast<double>(deltaTime));
             return;
+        }
+
+        // Receive and apply live client inputs on the server
+        if (m_inputReceiver)
+        {
+            for (ChronoState::VehicleEntry& vehicle : m_chronoState->m_vehicles)
+            {
+                if (vehicle.m_vehicleId == ChronoState::PlayerVehicleId)
+                {
+                    VehicleInputPacket inputPacket;
+                    if (m_inputReceiver->ReceiveLatest(vehicle.m_vehicleId, inputPacket))
+                    {
+                        LiveVehicleInputs inputs;
+                        inputs.m_steering = inputPacket.m_steering;
+                        inputs.m_throttle = inputPacket.m_throttle;
+                        inputs.m_braking = inputPacket.m_braking;
+                        inputs.m_handbrake = inputPacket.m_handbrake != 0;
+                        inputs.m_driveMode = inputPacket.m_driveMode;
+                        inputs.m_engineStarted = inputPacket.m_engineStarted != 0;
+                        vehicle.m_fixture->SetLiveInputs(inputs);
+                    }
+                }
+            }
         }
 
         const FixedStepPlan plan = m_chronoState->m_clock.Advance(deltaTime);
@@ -469,13 +504,155 @@ namespace LDMChronoVehicle
 
     void LDMChronoVehicleSystemComponent::OnClientTick()
     {
+        double targetSteering = 0.0;
+        double targetThrottle = 0.0;
+        double targetBrake = 0.0;
+        bool targetHandbrake = false;
+        bool gearUpPressed = false;
+        bool gearDownPressed = false;
+        bool engineStartPressed = false;
+
+#if defined(AZ_PLATFORM_WINDOWS)
+        // 1. Keyboard
+        if (GetAsyncKeyState('W') & 0x8000 || GetAsyncKeyState(VK_UP) & 0x8000)
+        {
+            targetThrottle = 1.0;
+        }
+        if (GetAsyncKeyState('S') & 0x8000 || GetAsyncKeyState(VK_DOWN) & 0x8000)
+        {
+            targetBrake = 1.0;
+        }
+        if (GetAsyncKeyState('A') & 0x8000 || GetAsyncKeyState(VK_LEFT) & 0x8000)
+        {
+            targetSteering -= 1.0;
+        }
+        if (GetAsyncKeyState('D') & 0x8000 || GetAsyncKeyState(VK_RIGHT) & 0x8000)
+        {
+            targetSteering += 1.0;
+        }
+        if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+        {
+            targetHandbrake = true;
+        }
+        if (GetAsyncKeyState('R') & 0x8000)
+        {
+            gearUpPressed = true;
+        }
+        if (GetAsyncKeyState('F') & 0x8000)
+        {
+            gearDownPressed = true;
+        }
+        if (GetAsyncKeyState('E') & 0x8000)
+        {
+            engineStartPressed = true;
+        }
+
+        // 2. Gamepad via XInput (dynamically loaded)
+        typedef DWORD(WINAPI* XInputGetState_t)(DWORD, XINPUT_STATE*);
+        static XInputGetState_t s_XInputGetState = nullptr;
+        static bool s_xinputLoaded = false;
+
+        if (!s_xinputLoaded)
+        {
+            HMODULE hXInput = LoadLibraryA("xinput1_4.dll");
+            if (!hXInput) hXInput = LoadLibraryA("xinput9_1_0.dll");
+            if (!hXInput) hXInput = LoadLibraryA("xinput1_3.dll");
+            if (hXInput)
+            {
+                s_XInputGetState = (XInputGetState_t)GetProcAddress(hXInput, "XInputGetState");
+            }
+            s_xinputLoaded = true;
+        }
+
+        if (s_XInputGetState)
+        {
+            XINPUT_STATE state;
+            memset(&state, 0, sizeof(state));
+            if (s_XInputGetState(0, &state) == ERROR_SUCCESS)
+            {
+                double lx = state.Gamepad.sThumbLX;
+                if (std::abs(lx) > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)
+                {
+                    double normalizedLx = lx / (lx > 0 ? 32767.0 : 32768.0);
+                    targetSteering = normalizedLx;
+                }
+
+                double rt = state.Gamepad.bRightTrigger;
+                if (rt > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
+                {
+                    targetThrottle = std::max(targetThrottle, rt / 255.0);
+                }
+
+                double lt = state.Gamepad.bLeftTrigger;
+                if (lt > XINPUT_GAMEPAD_TRIGGER_THRESHOLD)
+                {
+                    targetBrake = std::max(targetBrake, lt / 255.0);
+                }
+
+                if (state.Gamepad.wButtons & XINPUT_GAMEPAD_A)
+                {
+                    targetHandbrake = true;
+                }
+                if (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
+                {
+                    gearUpPressed = true;
+                }
+                if (state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER)
+                {
+                    gearDownPressed = true;
+                }
+                if (state.Gamepad.wButtons & XINPUT_GAMEPAD_START)
+                {
+                    engineStartPressed = true;
+                }
+            }
+        }
+#endif
+
+        if (gearUpPressed && !m_prevGearUpPressed)
+        {
+            m_clientDriveMode = std::min(1, m_clientDriveMode + 1);
+        }
+        m_prevGearUpPressed = gearUpPressed;
+
+        if (gearDownPressed && !m_prevGearDownPressed)
+        {
+            m_clientDriveMode = std::max(-1, m_clientDriveMode - 1);
+        }
+        m_prevGearDownPressed = gearDownPressed;
+
+        if (engineStartPressed && !m_prevEngineStartPressed)
+        {
+            m_clientEngineStarted = !m_clientEngineStarted;
+        }
+        m_prevEngineStartPressed = engineStartPressed;
+
+        m_clientSteering = targetSteering;
+        m_clientThrottle = targetThrottle;
+        m_clientBrake = targetBrake;
+        m_clientHandbrake = targetHandbrake;
+
         if (!m_snapshotReceiver)
         {
             return;
         }
 
         PoseSnapshotBatch packets;
-        if (!m_snapshotReceiver->ReceiveLatest(packets))
+        bool snapshotsReceived = m_snapshotReceiver->ReceiveLatest(packets);
+
+        if (m_inputPublisher)
+        {
+            static double lastSimTime = 0.0;
+            if (snapshotsReceived)
+            {
+                lastSimTime = packets.front().m_simulationTimeSeconds;
+            }
+            m_inputPublisher->Publish(lastSimTime, ChronoState::PlayerVehicleId,
+                m_clientSteering, m_clientThrottle, m_clientBrake, m_clientHandbrake,
+                m_clientDriveMode, m_clientEngineStarted);
+        }
+
+        if (!snapshotsReceived)
         {
             return;
         }
@@ -557,6 +734,20 @@ namespace LDMChronoVehicle
                 static_cast<double>(rotationErrorDegrees),
                 static_cast<double>(m_maxClientProxyPositionErrorMeters),
                 static_cast<double>(m_maxClientProxyRotationErrorDegrees));
+
+            if (packet.m_vehicleId == ChronoState::PlayerVehicleId)
+            {
+                AZ_Printf("LDMChronoVehicle",
+                    "T1 input trace: t=%.3f steering=%.3f throttle=%.3f brake=%.3f "
+                    "handbrake=%s gear=%d engine=%s\n",
+                    packet.m_simulationTimeSeconds,
+                    m_clientSteering,
+                    m_clientThrottle,
+                    m_clientBrake,
+                    m_clientHandbrake ? "true" : "false",
+                    m_clientDriveMode,
+                    m_clientEngineStarted ? "true" : "false");
+            }
         }
     }
 

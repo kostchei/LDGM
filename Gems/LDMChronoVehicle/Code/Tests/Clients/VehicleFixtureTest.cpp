@@ -134,4 +134,45 @@ namespace LDMChronoVehicle
         EXPECT_GT((enemy.GetChassisPose().GetTranslation() -
             player.GetChassisPose().GetTranslation()).GetLength(), 2.0f);
     }
+
+    TEST(VehicleFixtureTests, VerifyFiveSurfaceProfilesAreDistinguishable)
+    {
+        constexpr double fixedStep = 0.005;
+        double spawnYs[5] = { -80.0, -40.0, 0.0, 40.0, 80.0 };
+        double finalSpeeds[5] = { 0.0 };
+
+        for (int i = 0; i < 5; ++i)
+        {
+            chrono::ChSystemNSC system;
+            system.SetGravitationalAcceleration(
+                -9.81 * chrono::vehicle::ChWorldFrame::Vertical());
+
+            TerrainFixture terrain(system);
+            VehicleFixtureConfig config;
+            config.m_spawnY = spawnYs[i];
+            config.m_targetThrottle = 0.5;
+
+            VehicleFixture fixture(system, terrain.GetTerrain(), fixedStep, config);
+
+            const int steps = static_cast<int>(2.0 / fixedStep);
+            for (int step = 0; step < steps; ++step)
+            {
+                terrain.Synchronize(system.GetChTime());
+                fixture.Synchronize(system.GetChTime());
+                terrain.Advance(fixedStep);
+                fixture.Advance();
+                system.DoStepDynamics(fixedStep);
+            }
+
+            finalSpeeds[i] = fixture.GetForwardSpeedMetersPerSecond();
+            EXPECT_TRUE(std::isfinite(finalSpeeds[i]));
+            EXPECT_GT(finalSpeeds[i], 0.0);
+        }
+
+        for (int i = 0; i < 4; ++i)
+        {
+            EXPECT_NE(finalSpeeds[i], finalSpeeds[i + 1]);
+        }
+        EXPECT_GT(finalSpeeds[0], finalSpeeds[4]);
+    }
 } // namespace LDMChronoVehicle

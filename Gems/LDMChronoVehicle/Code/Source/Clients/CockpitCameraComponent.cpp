@@ -1,5 +1,13 @@
 #include "CockpitCameraComponent.h"
 
+#if defined(AZ_PLATFORM_WINDOWS)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <xinput.h>
+#endif
+
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
 
 #include <AzCore/Asset/AssetManagerBus.h>
@@ -119,11 +127,96 @@ namespace LDMChronoVehicle
             return;
         }
 
+#if defined(AZ_PLATFORM_WINDOWS)
+        // 1. Mouse horizontal look (Delta X)
+        POINT cursorPos;
+        if (GetCursorPos(&cursorPos))
+        {
+            if (!m_cursorInitialized)
+            {
+                m_prevMouseX = cursorPos.x;
+                m_cursorInitialized = true;
+            }
+            int mouseDx = cursorPos.x - m_prevMouseX;
+            m_prevMouseX = cursorPos.x;
+            
+            m_headLookYawDegrees += mouseDx * 0.15f;
+        }
+
+        // 2. Gamepad Right Stick X horizontal look
+        typedef DWORD(WINAPI* XInputGetState_t)(DWORD, XINPUT_STATE*);
+        static XInputGetState_t s_XInputGetState = nullptr;
+        static bool s_xinputLoaded = false;
+
+        if (!s_xinputLoaded)
+        {
+            HMODULE hXInput = LoadLibraryA("xinput1_4.dll");
+            if (!hXInput) hXInput = LoadLibraryA("xinput9_1_0.dll");
+            if (!hXInput) hXInput = LoadLibraryA("xinput1_3.dll");
+            if (hXInput)
+            {
+                s_XInputGetState = (XInputGetState_t)GetProcAddress(hXInput, "XInputGetState");
+            }
+            s_xinputLoaded = true;
+        }
+
+        if (s_XInputGetState)
+        {
+            XINPUT_STATE state;
+            memset(&state, 0, sizeof(state));
+            if (s_XInputGetState(0, &state) == ERROR_SUCCESS)
+            {
+                double rx = state.Gamepad.sThumbRX;
+                if (std::abs(rx) > XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)
+                {
+                    double normalizedRx = rx / (rx > 0 ? 32767.0 : 32768.0);
+                    m_headLookYawDegrees += static_cast<float>(normalizedRx * 2.0 * deltaTime * 30.0);
+                }
+
+                bool fovButtonPressed = (state.Gamepad.wButtons & XINPUT_GAMEPAD_Y) ||
+                                       (state.Gamepad.wButtons & XINPUT_GAMEPAD_B);
+                if (fovButtonPressed && !m_prevVToggled)
+                {
+                    m_fovModeWide = !m_fovModeWide;
+                    float fov = m_fovModeWide ? 85.0f : 55.0f;
+                    Camera::CameraRequestBus::Event(GetEntityId(), &Camera::CameraRequestBus::Events::SetFov, fov);
+                }
+                m_prevVToggled = fovButtonPressed;
+            }
+        }
+
+        // 3. Keyboard FOV toggle via key 'V'
+        if (GetAsyncKeyState('V') & 0x8000)
+        {
+            if (!m_prevVToggled)
+            {
+                m_fovModeWide = !m_fovModeWide;
+                float fov = m_fovModeWide ? 85.0f : 55.0f;
+                Camera::CameraRequestBus::Event(GetEntityId(), &Camera::CameraRequestBus::Events::SetFov, fov);
+            }
+            m_prevVToggled = true;
+        }
+        else if (!s_XInputGetState)
+        {
+            m_prevVToggled = false;
+        }
+#endif
+
+        m_headLookYawDegrees = AZ::GetClamp(m_headLookYawDegrees, -30.0f, 30.0f);
+
         AZ::Transform proxyPose = AZ::Transform::CreateIdentity();
         AZ::TransformBus::EventResult(
             proxyPose, m_targetVehicleEntityId, &AZ::TransformBus::Events::GetWorldTM);
 
-        m_cameraWorldPose = proxyPose * GetCockpitOffset();
+        AZ::Quaternion headLookRotation =
+            AZ::Quaternion::CreateRotationZ(AZ::DegToRad(m_headLookYawDegrees));
+        
+        AZ::Transform baseOffset = GetCockpitOffset();
+        AZ::Transform headLookTransform = AZ::Transform::CreateFromQuaternionAndTranslation(
+            baseOffset.GetRotation() * headLookRotation,
+            baseOffset.GetTranslation());
+
+        m_cameraWorldPose = proxyPose * headLookTransform;
         AZ::TransformBus::Event(
             GetEntityId(), &AZ::TransformBus::Events::SetWorldTM, m_cameraWorldPose);
         ++m_totalFrames;
@@ -146,8 +239,6 @@ namespace LDMChronoVehicle
             ++m_invalidFrames;
         }
 
-        // Attachment check: re-deriving the offset from the camera and proxy
-        // poses must reproduce the fixed cockpit offset.
         const AZ::Transform rederivedOffset = proxyPose.GetInverse() * appliedCameraPose;
         const float attachmentError =
             (rederivedOffset.GetTranslation() - GetCockpitOffset().GetTranslation()).GetLength();
@@ -168,6 +259,12 @@ namespace LDMChronoVehicle
                 static_cast<unsigned long long>(m_invalidFrames),
                 static_cast<double>(m_maxAttachmentErrorMeters),
                 m_activeCameraObserved ? "true" : "false");
+
+            AZ_Printf("LDMChronoVehicle",
+                "T1 camera headlook trace: t=%.3f yaw_deg=%.3f fov_wide=%s\n",
+                m_elapsedSeconds,
+                static_cast<double>(m_headLookYawDegrees),
+                m_fovModeWide ? "true" : "false");
         }
     }
 } // namespace LDMChronoVehicle

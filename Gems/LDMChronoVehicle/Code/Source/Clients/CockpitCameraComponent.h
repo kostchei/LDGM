@@ -51,5 +51,11 @@ namespace LDMChronoVehicle
         float m_maxAttachmentErrorMeters = 0.0f;
         bool m_inventoryLogged = false;
         bool m_activeCameraObserved = false;
+
+        float m_headLookYawDegrees = 0.0f;
+        bool m_fovModeWide = false;
+        bool m_prevVToggled = false;
+        bool m_cursorInitialized = false;
+        int m_prevMouseX = 0;
     };
 } // namespace LDMChronoVehicle

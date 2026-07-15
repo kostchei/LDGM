@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <memory>
@@ -9,11 +8,10 @@
 #include <AzCore/std/containers/unordered_map.h>
 #include <AzCore/std/smart_ptr/unique_ptr.h>
 #include <LDMChronoVehicle/LDMChronoVehicleBus.h>
+#include <Clients/PoseSnapshots.h>
 
 namespace LDMChronoVehicle
 {
-    class PoseSnapshotReceiver;
-
     class LDMChronoVehicleSystemComponent
         : public AZ::Component
         , protected LDMChronoVehicleRequestBus::Handler
@@ -62,12 +60,26 @@ namespace LDMChronoVehicle
 
         // Client role: consumes authoritative pose snapshots.
         AZStd::unique_ptr<PoseSnapshotReceiver> m_snapshotReceiver;
+        AZStd::unique_ptr<VehicleInputPublisher> m_inputPublisher;
+        AZStd::unique_ptr<VehicleInputReceiver> m_inputReceiver;
         AZStd::unordered_map<VehicleId, AZ::EntityId> m_clientVehicleEntities;
         AZ::EntityId m_clientTerrainEntityId;
         AZ::EntityId m_clientCameraEntityId;
         double m_nextSnapshotTraceTimeSeconds = 0.0;
         float m_maxClientProxyPositionErrorMeters = 0.0f;
         float m_maxClientProxyRotationErrorDegrees = 0.0f;
+
+        // Tracks client's local input state:
+        double m_clientSteering = 0.0;
+        double m_clientThrottle = 0.0;
+        double m_clientBrake = 0.0;
+        bool m_clientHandbrake = false;
+        int m_clientDriveMode = 1;
+        bool m_clientEngineStarted = true;
+
+        bool m_prevGearUpPressed = false;
+        bool m_prevGearDownPressed = false;
+        bool m_prevEngineStartPressed = false;
     };
 
 } // namespace LDMChronoVehicle

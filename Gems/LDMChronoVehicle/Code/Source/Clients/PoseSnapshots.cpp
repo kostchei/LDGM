@@ -225,4 +225,140 @@ namespace LDMChronoVehicle
     {
         return m_rejectedCount;
     }
+
+    bool VehicleInputPacket::IsValid() const
+    {
+        const bool headerValid = m_magic == ExpectedMagic && m_version == ExpectedVersion;
+        const bool payloadFinite =
+            std::isfinite(m_simulationTimeSeconds) &&
+            std::isfinite(m_steering) && std::isfinite(m_throttle) && std::isfinite(m_braking);
+        const bool valuesInBounds =
+            m_steering >= -1.05 && m_steering <= 1.05 &&
+            m_throttle >= 0.0 && m_throttle <= 1.05 &&
+            m_braking >= 0.0 && m_braking <= 1.05 &&
+            m_driveMode >= -1 && m_driveMode <= 1;
+        return headerValid && payloadFinite && valuesInBounds &&
+            m_simulationTimeSeconds >= 0.0 && m_vehicleId != InvalidVehicleId;
+    }
+
+    VehicleInputPublisher::VehicleInputPublisher()
+    {
+        AZ::AzSock::Startup();
+        m_socket = OpenConnectedUdpSocket(InputConfig::ClientPort, InputConfig::ServerPort);
+    }
+
+    VehicleInputPublisher::~VehicleInputPublisher()
+    {
+        if (AZ::AzSock::IsAzSocketValid(m_socket))
+        {
+            AZ::AzSock::CloseSocket(m_socket);
+            m_socket = -1;
+        }
+        AZ::AzSock::Cleanup();
+    }
+
+    bool VehicleInputPublisher::IsReady() const
+    {
+        return AZ::AzSock::IsAzSocketValid(m_socket);
+    }
+
+    void VehicleInputPublisher::Publish(double simulationTimeSeconds, VehicleId vehicleId,
+        double steering, double throttle, double braking, bool handbrake, int driveMode, bool engineStarted)
+    {
+        if (!IsReady())
+        {
+            return;
+        }
+
+        VehicleInputPacket packet;
+        packet.m_simulationTimeSeconds = simulationTimeSeconds;
+        packet.m_vehicleId = vehicleId;
+        packet.m_steering = steering;
+        packet.m_throttle = throttle;
+        packet.m_braking = braking;
+        packet.m_handbrake = handbrake ? 1 : 0;
+        packet.m_driveMode = driveMode;
+        packet.m_engineStarted = engineStarted ? 1 : 0;
+
+        const AZ::s32 sent = AZ::AzSock::Send(m_socket,
+            reinterpret_cast<const char*>(&packet), sizeof(packet), 0);
+        if (sent == static_cast<AZ::s32>(sizeof(packet)))
+        {
+            ++m_sentCount;
+        }
+    }
+
+    AZ::u64 VehicleInputPublisher::GetSentCount() const
+    {
+        return m_sentCount;
+    }
+
+    VehicleInputReceiver::VehicleInputReceiver()
+    {
+        AZ::AzSock::Startup();
+        m_socket = OpenConnectedUdpSocket(InputConfig::ServerPort, InputConfig::ClientPort);
+    }
+
+    VehicleInputReceiver::~VehicleInputReceiver()
+    {
+        if (AZ::AzSock::IsAzSocketValid(m_socket))
+        {
+            AZ::AzSock::CloseSocket(m_socket);
+            m_socket = -1;
+        }
+        AZ::AzSock::Cleanup();
+    }
+
+    bool VehicleInputReceiver::IsReady() const
+    {
+        return AZ::AzSock::IsAzSocketValid(m_socket);
+    }
+
+    bool VehicleInputReceiver::ReceiveLatest(VehicleId vehicleId, VehicleInputPacket& outPacket)
+    {
+        if (!IsReady())
+        {
+            return false;
+        }
+
+        bool found = false;
+        while (true)
+        {
+            VehicleInputPacket packet;
+            const AZ::s32 received = AZ::AzSock::Recv(m_socket,
+                reinterpret_cast<char*>(&packet), sizeof(packet), 0);
+            if (AZ::AzSock::SocketErrorOccured(received))
+            {
+                break; // drained
+            }
+
+            if (received != static_cast<AZ::s32>(sizeof(packet)) || !packet.IsValid())
+            {
+                ++m_rejectedCount;
+                continue;
+            }
+
+            if (packet.m_vehicleId == vehicleId)
+            {
+                ++m_receivedCount;
+                if (!found || packet.m_simulationTimeSeconds >= outPacket.m_simulationTimeSeconds)
+                {
+                    outPacket = packet;
+                    found = true;
+                }
+            }
+        }
+
+        return found;
+    }
+
+    AZ::u64 VehicleInputReceiver::GetReceivedCount() const
+    {
+        return m_receivedCount;
+    }
+
+    AZ::u64 VehicleInputReceiver::GetRejectedCount() const
+    {
+        return m_rejectedCount;
+    }
 } // namespace LDMChronoVehicle
