@@ -28,14 +28,18 @@ namespace LDMChronoVehicle
         system.SetGravitationalAcceleration(
             -9.81 * chrono::vehicle::ChWorldFrame::Vertical());
 
-        VehicleFixture fixture(system, fixedStep);
+        TerrainFixture terrain(system);
+        VehicleFixture fixture(system, terrain.GetTerrain(), fixedStep);
 
         const auto advanceFor = [&](double durationSeconds)
         {
             const int steps = static_cast<int>(durationSeconds / fixedStep + 0.5);
             for (int i = 0; i < steps; ++i)
             {
-                fixture.SynchronizeAndAdvance(system.GetChTime());
+                terrain.Synchronize(system.GetChTime());
+                fixture.Synchronize(system.GetChTime());
+                terrain.Advance(fixedStep);
+                fixture.Advance();
                 system.DoStepDynamics(fixedStep);
             }
         };
@@ -68,5 +72,66 @@ namespace LDMChronoVehicle
         EXPECT_GT(driven.GetTranslation().GetZ(), 0.2f);
         EXPECT_LT(driven.GetTranslation().GetZ(), 1.5f);
         EXPECT_GT(fixture.GetForwardSpeedMetersPerSecond(), 1.0);
+    }
+
+    TEST(TerrainFixtureTests, O3dePresentationMatchesChronoPatch)
+    {
+        const TerrainAlignmentMeasurement alignment = MeasureTerrainAlignment();
+
+        EXPECT_TRUE(alignment.Passes());
+        EXPECT_NEAR(alignment.m_originErrorMeters, 0.0, 1e-12);
+        EXPECT_NEAR(alignment.m_surfaceHeightErrorMeters, 0.0, 1e-12);
+        EXPECT_NEAR(alignment.m_renderedLengthErrorMeters, 0.0, 1e-12);
+        EXPECT_NEAR(alignment.m_renderedWidthErrorMeters, 0.0, 1e-12);
+    }
+
+    TEST(TerrainFixtureTests, DetectsO3dePresentationMisalignment)
+    {
+        const TerrainAlignmentMeasurement alignment = MeasureTerrainAlignment(
+            0.03, 0.0, 0.025, TerrainFixtureConfig::O3deGroundUniformScale + 0.001);
+
+        EXPECT_FALSE(alignment.Passes());
+        EXPECT_NEAR(alignment.m_originErrorMeters, 0.03, 1e-12);
+        EXPECT_NEAR(alignment.m_surfaceHeightErrorMeters, 0.025, 1e-12);
+        EXPECT_NEAR(alignment.m_renderedLengthErrorMeters, 0.512, 1e-12);
+        EXPECT_NEAR(alignment.m_renderedWidthErrorMeters, 0.512, 1e-12);
+    }
+
+    TEST(VehicleFixtureTests, TwoVehiclesAdvanceOnOneSharedTerrain)
+    {
+        constexpr double fixedStep = 0.005;
+
+        chrono::ChSystemNSC system;
+        system.SetGravitationalAcceleration(
+            -9.81 * chrono::vehicle::ChWorldFrame::Vertical());
+        TerrainFixture terrain(system);
+        VehicleFixtureConfig playerConfig;
+        playerConfig.m_spawnY = -2.0;
+        playerConfig.m_targetThrottle = 0.35;
+        VehicleFixture player(system, terrain.GetTerrain(), fixedStep, playerConfig);
+        VehicleFixtureConfig enemyConfig;
+        enemyConfig.m_spawnX = 12.0;
+        enemyConfig.m_spawnY = 2.0;
+        enemyConfig.m_targetThrottle = 0.30;
+        enemyConfig.m_steering = -0.01;
+        VehicleFixture enemy(system, terrain.GetTerrain(), fixedStep, enemyConfig);
+
+        for (int step = 0; step < 400; ++step)
+        {
+            terrain.Synchronize(system.GetChTime());
+            player.Synchronize(system.GetChTime());
+            enemy.Synchronize(system.GetChTime());
+            terrain.Advance(fixedStep);
+            player.Advance();
+            enemy.Advance();
+            system.DoStepDynamics(fixedStep);
+        }
+
+        EXPECT_TRUE(player.GetChassisPose().IsFinite());
+        EXPECT_TRUE(enemy.GetChassisPose().IsFinite());
+        EXPECT_GT(player.GetForwardSpeedMetersPerSecond(), 1.0);
+        EXPECT_GT(enemy.GetForwardSpeedMetersPerSecond(), 1.0);
+        EXPECT_GT((enemy.GetChassisPose().GetTranslation() -
+            player.GetChassisPose().GetTranslation()).GetLength(), 2.0f);
     }
 } // namespace LDMChronoVehicle

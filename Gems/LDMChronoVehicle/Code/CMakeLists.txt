@@ -67,6 +67,7 @@ ly_add_target(
         PUBLIC
             AZ::AzCore
             AZ::AzFramework
+            Gem::AtomLyIntegration_CommonFeatures.Public
         PRIVATE
             Chrono::Chrono_core
             Chrono::Chrono_vehicle

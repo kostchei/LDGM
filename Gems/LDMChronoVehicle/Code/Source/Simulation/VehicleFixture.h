@@ -21,8 +21,17 @@ namespace chrono
 
 namespace LDMChronoVehicle
 {
-    // T0 integration fixture: one stock, fully programmatic HMMWV on the
-    // shared flat terrain patch built from TerrainFixtureConfig, driven by a
+    struct VehicleFixtureConfig
+    {
+        double m_spawnX = 0.0;
+        double m_spawnY = 0.0;
+        double m_spawnYawRadians = 0.0;
+        double m_targetThrottle = 0.4;
+        double m_steering = 0.0;
+    };
+
+    // T0 integration fixture: one stock, fully programmatic HMMWV using a
+    // caller-owned shared terrain patch, driven by a
     // deterministic scripted input schedule (settle, throttle ramp, straight
     // drive). No data files are loaded and no visualization assets are
     // created, so the fixture runs headless.
@@ -32,17 +41,20 @@ namespace LDMChronoVehicle
     class VehicleFixture final
     {
     public:
-        VehicleFixture(chrono::ChSystem& system, double fixedStepSeconds);
+        VehicleFixture(chrono::ChSystem& system, chrono::vehicle::RigidTerrain& terrain,
+            double fixedStepSeconds, const VehicleFixtureConfig& config = {});
         ~VehicleFixture();
 
-        void SynchronizeAndAdvance(double simulationTimeSeconds);
+        void Synchronize(double simulationTimeSeconds);
+        void Advance();
 
         AZ::Transform GetChassisPose() const;
         double GetForwardSpeedMetersPerSecond() const;
 
     private:
         double m_fixedStepSeconds = 0.0;
-        std::unique_ptr<chrono::vehicle::RigidTerrain> m_terrain;
+        chrono::vehicle::RigidTerrain& m_terrain;
+        VehicleFixtureConfig m_config;
         std::unique_ptr<chrono::vehicle::hmmwv::HMMWV_Full> m_vehicle;
     };
 } // namespace LDMChronoVehicle

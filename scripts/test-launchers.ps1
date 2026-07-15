@@ -17,11 +17,14 @@ $launcherDirectory = Join-Path $environment.RepoRoot "build\windows\bin\$Configu
 $launchers = @(
     @{ Name = "LDGM.ServerLauncher.exe"; Log = "Server.log"
        Expected = @("Chrono Core/Vehicle lifecycle smoke passed", "role=authoritative",
-                    "T0 transform trace", "T0 proxy trace",
-                    "T0 camera trace", "T0 input inventory") },
+                    "T0 transform trace", "role=player", "role=enemy",
+                    "active=2", "step_wall_ms=", "dropped_s=0.000000") },
     @{ Name = "LDGM.GameLauncher.exe"; Log = "Game.log"
        Expected = @("Chrono Core/Vehicle lifecycle smoke passed", "role=client-linkage",
-                    "T0 snapshot trace") }
+                    "T0 snapshot trace", "presentations=2", "T0 proxy trace",
+                    "mesh_component=true", "T0 client terrain presentation",
+                    "T0 cockpit camera created", "T0 camera trace",
+                    "camera_component=true active=true", "T0 input inventory") }
 )
 
 $startedAt = Get-Date

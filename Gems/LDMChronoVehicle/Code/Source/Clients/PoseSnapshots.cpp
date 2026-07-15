@@ -4,6 +4,7 @@
 #include <AzCore/Math/Quaternion.h>
 #include <AzCore/Math/Vector3.h>
 #include <AzCore/Socket/AzSocket.h>
+#include <AzCore/std/algorithm.h>
 
 #include <cmath>
 #include <cstring>
@@ -66,7 +67,13 @@ namespace LDMChronoVehicle
             std::isfinite(m_positionX) && std::isfinite(m_positionY) && std::isfinite(m_positionZ) &&
             std::isfinite(m_rotationW) && std::isfinite(m_rotationX) &&
             std::isfinite(m_rotationY) && std::isfinite(m_rotationZ);
-        return headerValid && payloadFinite && m_vehicleId != InvalidVehicleId;
+        const double rotationLengthSquared =
+            m_rotationW * m_rotationW + m_rotationX * m_rotationX +
+            m_rotationY * m_rotationY + m_rotationZ * m_rotationZ;
+        const bool rotationValid = std::isfinite(rotationLengthSquared) &&
+            rotationLengthSquared > 0.99 && rotationLengthSquared < 1.01;
+        return headerValid && payloadFinite && rotationValid &&
+            m_simulationTimeSeconds >= 0.0 && m_vehicleId != InvalidVehicleId;
     }
 
     AZ::Transform PoseSnapshotPacket::GetPose() const
@@ -161,14 +168,14 @@ namespace LDMChronoVehicle
         return AZ::AzSock::IsAzSocketValid(m_socket);
     }
 
-    bool PoseSnapshotReceiver::ReceiveLatest(PoseSnapshotPacket& outPacket)
+    bool PoseSnapshotReceiver::ReceiveLatest(PoseSnapshotBatch& outPackets)
     {
         if (!IsReady())
         {
             return false;
         }
 
-        bool anyValid = false;
+        outPackets.clear();
         for (;;)
         {
             PoseSnapshotPacket packet;
@@ -188,11 +195,25 @@ namespace LDMChronoVehicle
             }
 
             ++m_receivedCount;
-            outPacket = packet;
-            anyValid = true;
+            auto existing = AZStd::find_if(outPackets.begin(), outPackets.end(),
+                [vehicleId = packet.m_vehicleId](const PoseSnapshotPacket& candidate)
+                {
+                    return candidate.m_vehicleId == vehicleId;
+                });
+            if (existing == outPackets.end())
+            {
+                if (outPackets.size() < outPackets.capacity())
+                {
+                    outPackets.push_back(packet);
+                }
+            }
+            else if (packet.m_simulationTimeSeconds >= existing->m_simulationTimeSeconds)
+            {
+                *existing = packet;
+            }
         }
 
-        return anyValid;
+        return !outPackets.empty();
     }
 
     AZ::u64 PoseSnapshotReceiver::GetReceivedCount() const

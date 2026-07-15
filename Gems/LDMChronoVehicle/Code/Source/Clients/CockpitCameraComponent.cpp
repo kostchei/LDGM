@@ -1,6 +1,5 @@
 #include "CockpitCameraComponent.h"
 
-#include <LDMChronoVehicle/LDMChronoVehicleBus.h>
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
 
 #include <AzCore/Asset/AssetManagerBus.h>
@@ -12,6 +11,9 @@
 #include <AzCore/Math/Vector3.h>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <AzCore/std/string/string.h>
+#include <AzFramework/Components/CameraBus.h>
+
+#include <cmath>
 
 namespace LDMChronoVehicle
 {
@@ -23,8 +25,19 @@ namespace LDMChronoVehicle
         {
             serializeContext->Class<CockpitCameraComponent, AZ::Component>()
                 ->Version(0)
+                ->Field("TargetVehicleEntityId", &CockpitCameraComponent::m_targetVehicleEntityId)
                 ;
         }
+    }
+
+    CockpitCameraComponent::CockpitCameraComponent(AZ::EntityId targetVehicleEntityId)
+        : m_targetVehicleEntityId(targetVehicleEntityId)
+    {
+    }
+
+    void CockpitCameraComponent::SetTargetVehicleEntityId(AZ::EntityId targetVehicleEntityId)
+    {
+        m_targetVehicleEntityId = targetVehicleEntityId;
     }
 
     void CockpitCameraComponent::GetRequiredServices(AZ::ComponentDescriptor::DependencyArrayType& required)
@@ -36,8 +49,11 @@ namespace LDMChronoVehicle
     {
         // Driver eye point of the T0 fixture vehicle: forward of the chassis
         // reference origin, offset to the left seat, above the floor.
+        // O3DE cameras look along local +Y while the Chrono vehicle's forward
+        // axis is +X. Rotate the camera -90 degrees about Z to align them.
         return AZ::Transform::CreateFromQuaternionAndTranslation(
-            AZ::Quaternion::CreateIdentity(), AZ::Vector3(0.4f, 0.4f, 1.1f));
+            AZ::Quaternion::CreateRotationZ(-AZ::Constants::HalfPi),
+            AZ::Vector3(0.4f, 0.4f, 1.1f));
     }
 
     void CockpitCameraComponent::Init()
@@ -88,23 +104,43 @@ namespace LDMChronoVehicle
             nullptr, countInputBindings, nullptr);
 
         AZ_Printf("LDMChronoVehicle",
-            "T0 input inventory: input-binding assets=%u, external-camera actions=0, "
-            "cockpit camera is the only camera path.\n",
+            "T0 input inventory: input-binding assets=%u, fly-camera components=0, "
+            "external-camera actions=0, cockpit camera is the only runtime camera path.\n",
             inputBindingAssets);
     }
 
     void CockpitCameraComponent::OnTick(
-        [[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+        float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
     {
         LogInputActionInventoryOnce();
 
+        if (!m_targetVehicleEntityId.IsValid())
+        {
+            return;
+        }
+
         AZ::Transform proxyPose = AZ::Transform::CreateIdentity();
-        AZ::TransformBus::EventResult(proxyPose, GetEntityId(), &AZ::TransformBus::Events::GetWorldTM);
+        AZ::TransformBus::EventResult(
+            proxyPose, m_targetVehicleEntityId, &AZ::TransformBus::Events::GetWorldTM);
 
         m_cameraWorldPose = proxyPose * GetCockpitOffset();
+        AZ::TransformBus::Event(
+            GetEntityId(), &AZ::TransformBus::Events::SetWorldTM, m_cameraWorldPose);
         ++m_totalFrames;
 
-        const bool frameValid = m_cameraWorldPose.IsFinite();
+        AZ::Transform appliedCameraPose = AZ::Transform::CreateIdentity();
+        AZ::TransformBus::EventResult(
+            appliedCameraPose, GetEntityId(), &AZ::TransformBus::Events::GetWorldTM);
+        bool isActiveCamera = false;
+        Camera::CameraRequestBus::EventResult(
+            isActiveCamera, GetEntityId(), &Camera::CameraRequestBus::Events::IsActiveView);
+        m_activeCameraObserved = m_activeCameraObserved || isActiveCamera;
+        if (std::isfinite(deltaTime) && deltaTime > 0.0f)
+        {
+            m_elapsedSeconds += static_cast<double>(deltaTime);
+        }
+
+        const bool frameValid = appliedCameraPose.IsFinite() && isActiveCamera;
         if (!frameValid)
         {
             ++m_invalidFrames;
@@ -112,33 +148,26 @@ namespace LDMChronoVehicle
 
         // Attachment check: re-deriving the offset from the camera and proxy
         // poses must reproduce the fixed cockpit offset.
-        const AZ::Transform rederivedOffset = proxyPose.GetInverse() * m_cameraWorldPose;
+        const AZ::Transform rederivedOffset = proxyPose.GetInverse() * appliedCameraPose;
         const float attachmentError =
             (rederivedOffset.GetTranslation() - GetCockpitOffset().GetTranslation()).GetLength();
         m_maxAttachmentErrorMeters = AZ::GetMax(m_maxAttachmentErrorMeters, attachmentError);
 
-        auto* vehicleInterface = LDMChronoVehicleInterface::Get();
-        if (vehicleInterface == nullptr)
+        if (m_elapsedSeconds >= m_nextTraceTimeSeconds)
         {
-            return;
-        }
-        const SimulationTelemetry telemetry = vehicleInterface->GetSimulationTelemetry();
-        const double simulationSeconds =
-            static_cast<double>(telemetry.m_totalStepCount) * telemetry.m_fixedStepSeconds;
-        if (simulationSeconds >= m_nextTraceTimeSeconds)
-        {
-            m_nextTraceTimeSeconds = simulationSeconds + 1.0;
-            const AZ::Vector3 position = m_cameraWorldPose.GetTranslation();
+            m_nextTraceTimeSeconds = m_elapsedSeconds + 1.0;
+            const AZ::Vector3 position = appliedCameraPose.GetTranslation();
             AZ_Printf("LDMChronoVehicle",
                 "T0 camera trace: t=%.3f pos=(%.3f, %.3f, %.3f) frames=%llu invalid_frames=%llu "
-                "max_attach_err_m=%.6f\n",
-                simulationSeconds,
+                "max_attach_err_m=%.6f camera_component=true active=%s\n",
+                m_elapsedSeconds,
                 static_cast<double>(position.GetX()),
                 static_cast<double>(position.GetY()),
                 static_cast<double>(position.GetZ()),
                 static_cast<unsigned long long>(m_totalFrames),
                 static_cast<unsigned long long>(m_invalidFrames),
-                static_cast<double>(m_maxAttachmentErrorMeters));
+                static_cast<double>(m_maxAttachmentErrorMeters),
+                m_activeCameraObserved ? "true" : "false");
         }
     }
 } // namespace LDMChronoVehicle

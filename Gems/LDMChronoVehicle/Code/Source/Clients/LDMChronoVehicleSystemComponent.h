@@ -5,13 +5,10 @@
 
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TickBus.h>
+#include <AzCore/Component/EntityId.h>
+#include <AzCore/std/containers/unordered_map.h>
 #include <AzCore/std/smart_ptr/unique_ptr.h>
 #include <LDMChronoVehicle/LDMChronoVehicleBus.h>
-
-namespace AZ
-{
-    class Entity;
-} // namespace AZ
 
 namespace LDMChronoVehicle
 {
@@ -47,6 +44,10 @@ namespace LDMChronoVehicle
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
         int GetTickOrder() override;
         void OnClientTick();
+        AZ::EntityId CreateClientVehiclePresentation(VehicleId vehicleId);
+        void EnsureClientTerrainPresentation();
+        void EnsureClientCockpitCamera(AZ::EntityId playerVehicleEntityId);
+        void DestroyClientPresentation();
 
         ////////////////////////////////////////////////////////////////////////
         // AZ::Component interface implementation
@@ -58,12 +59,15 @@ namespace LDMChronoVehicle
     private:
         struct ChronoState;
         std::unique_ptr<ChronoState> m_chronoState;
-        AZStd::unique_ptr<AZ::Entity> m_proxyEntity;
 
         // Client role: consumes authoritative pose snapshots.
         AZStd::unique_ptr<PoseSnapshotReceiver> m_snapshotReceiver;
-        AZStd::unique_ptr<AZ::Entity> m_clientProxyEntity;
+        AZStd::unordered_map<VehicleId, AZ::EntityId> m_clientVehicleEntities;
+        AZ::EntityId m_clientTerrainEntityId;
+        AZ::EntityId m_clientCameraEntityId;
         double m_nextSnapshotTraceTimeSeconds = 0.0;
+        float m_maxClientProxyPositionErrorMeters = 0.0f;
+        float m_maxClientProxyRotationErrorDegrees = 0.0f;
     };
 
 } // namespace LDMChronoVehicle

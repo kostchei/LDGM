@@ -22,6 +22,7 @@
         "LDGM",
         "LDMChronoVehicle",
         "Atom",
+        "Camera",
         "CameraFramework",
         "ImGui"
     ],

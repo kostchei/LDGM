@@ -4,9 +4,9 @@ Last updated: 2026-07-15
 
 ## Current stage
 
-**T0 runtime ownership and fixed-step foundation — in progress**
+**T0 gate evaluated — blocked on required capture and clean-build evidence**
 
-The recovered specification and T0–T8 acceptance contracts are present and valid. The pinned O3DE client and server launchers build with Project Chrono linked privately through `LDMChronoVehicle`. Both roles remain alive during bounded runtime probes and log a successful Chrono lifecycle step. The active foundation checkpoint is the coordinate conversion and transform synchronization boundary required by the rest of T0.
+The T0 implementation now runs two authoritative Chrono vehicles (player and enemy) on one shared terrain fixture and presents both through real client-side Atom mesh entities. A runtime O3DE `CameraComponent` follows the player cockpit, and the O3DE terrain entity is read back and measured against the Chrono terrain definition. Every assertion exercised by the current incremental run passes, including the permanent 30-vehicle registry ceiling, but the formal gate remains blocked until a clean build and the required rendered driving/collision captures are executed and retained as evidence.
 
 ## Stage ledger
 
@@ -26,12 +26,12 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | T0 fixed-step and active registry primitives | Complete | 6 GoogleTests pass; bounded catch-up and dropped-time reporting; 30 accepted, 31st rejected, release idempotent |
 | T0 authoritative runtime adapter | Complete | Server-only 5 ms fixed stepping; eight-step catch-up bound; public plain-data telemetry and capacity API; both launcher probes logged the correct role (client-linkage / authoritative) |
 | T0 coordinate conversion boundary | Complete | Shared right-handed Z-up frame (Chrono default ISO); component-wise pose/vector/quaternion conversion in `Simulation/CoordinateConversion`; GoogleTests include cross-engine rotation agreement |
-| T0 vehicle and shared-terrain fixture | Complete | Programmatic HMMWV on the versioned terrain patch (checksum-logged); scripted settle/ramp/drive; 14/14 GoogleTests; server probe logs per-second transform traces at real-time 200 Hz stepping |
-| T0 render proxy | Complete | `VehicleProxyComponent` entity consumes the authoritative pose after each simulation tick; probe log shows Chrono-versus-proxy error 0.000 m / max 0.040° against the 0.05 m / 1° gate |
-| T0 cockpit camera | Complete | Camera pose derived rigidly from the proxy each frame; probe log shows 0 invalid frames, max attachment error 1.7e-5 m; input inventory logs zero input-binding assets and zero external-camera actions |
-| T0 host-to-client snapshots | Complete | Authoritative host publishes 20 Hz pose snapshots over loopback UDP; concurrent probe shows the client applying 218 snapshots with 0 rejects and the terrain checksum intact across the wire |
-| T0 integration implementation | Implementation complete | All T0 deliverables implemented headless; gate evaluation pending |
-| T0 acceptance gate | Not started | `test_goals/t0_integration_spike.json` |
+| T0 vehicle and shared-terrain fixture | Complete | Two programmatic HMMWVs (player and enemy) advance on one authoritative `RigidTerrain`; the runtime registry reports 2 active vehicles |
+| T0 client presentation | Complete | Two game-context entities own real Atom `MeshComponent` presentation and consume per-vehicle 20 Hz snapshots; 451 snapshots received with 0 rejects in the recorded probe |
+| T0 terrain alignment | Automated assertions pass | Runtime readback of the O3DE ground transform measures 0.000 m origin/surface/extent error against the Chrono terrain definition |
+| T0 cockpit camera | Automated assertions pass | A real runtime `CameraComponent` remains active at the player cockpit; 0 invalid frames and 0.000025 m maximum attachment error |
+| T0 integration implementation | Complete for two-vehicle spike | Capacity and snapshot structures retain the permanent maximum of 30; 31st registry reservation is rejected by test |
+| T0 acceptance gate | Blocked | Machine-readable result: `artifacts/t0/t0_gate_result.json`; clean-build, non-null-RHI video, and collision-input camera evidence remain missing |
 | T1–T7 | Not started | Must follow preceding tranche gates |
 
 ## Completed work
@@ -96,10 +96,17 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 
 - Added the T0 spike snapshot channel (connected UDP over loopback, fixed ports, versioned trivially-copyable packet with finite-value validation): the authoritative host publishes 20 Hz chassis poses and the client applies them to its own proxy entity.
 - Rewrote the launcher probe to run both roles concurrently: the server must log its simulation, proxy, camera and inventory evidence while the client logs received snapshot traces (218 received, 0 rejected in the passing probe).
+- Replaced the single authoritative fixture with player and enemy HMMWVs sharing one Chrono terrain instance; both are reserved through the same 30-slot active-vehicle registry and published independently.
+- Changed snapshot draining to retain the newest packet per vehicle, using a fixed-capacity batch bounded by `MaxActiveVehicles`.
+- Replaced transform-only client proxies with game-context entities that own Atom mesh components, added a scaled runtime ground presentation, and activated a real O3DE camera entity rigidly attached to the player cockpit.
+- Added runtime O3DE terrain-transform readback and alignment telemetry. The passing profile probe measured 0.000 m terrain origin/surface/extent error, 0.000 m proxy position error, and 0.039565° maximum proxy orientation error.
+- Added `tools/evaluate_t0_gate.py` and generated the formal machine-readable T0 result. Automated physics, camera, capacity, timing, unit-test, and smoke-test assertions pass; the overall gate remains blocked on explicitly listed evidence gaps.
 
 ## Next checkpoint
 
-1. Evaluate the T0 acceptance gate against `test_goals/t0_integration_spike.json`, assembling the machine-readable results and recording remaining evidence gaps (rendered driving capture, collision-input camera-shake case, 30-vehicle registry evidence at runtime).
+1. Run a fresh clean dependency/bootstrap and Profile client/server build while retaining the build logs.
+2. Run the client with a non-null RHI and capture first-person driving video.
+3. Add or drive a collision-input fixture, capture camera stability telemetry/video, then rerun `python tools/evaluate_t0_gate.py --configuration profile`.
 
 ## Working rules
 

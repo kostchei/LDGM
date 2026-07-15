@@ -5,7 +5,6 @@
 
 #include <AzCore/Debug/Trace.h>
 
-#include <chrono/physics/ChContactMaterialNSC.h>
 #include <chrono/physics/ChSystem.h>
 #include <chrono_models/vehicle/hmmwv/HMMWV.h>
 #include <chrono_vehicle/terrain/RigidTerrain.h>
@@ -22,45 +21,35 @@ namespace LDMChronoVehicle
         // repeated runs produce comparable transform traces.
         constexpr double SettleSeconds = 0.75;
         constexpr double ThrottleRampSeconds = 0.5;
-        constexpr double TargetThrottle = 0.4;
-
         // TMeasy tires substep internally; 1 ms keeps them stable under the
         // adapter's 5 ms vehicle step.
         constexpr double TireStepSeconds = 0.001;
         constexpr double SpawnHeightMeters = 1.0;
 
-        chrono::vehicle::DriverInputs ScriptedInputsAtTime(double timeSeconds)
+        chrono::vehicle::DriverInputs ScriptedInputsAtTime(
+            double timeSeconds, const VehicleFixtureConfig& config)
         {
             chrono::vehicle::DriverInputs inputs;
-            inputs.m_steering = 0.0;
+            inputs.m_steering = config.m_steering;
             inputs.m_braking = 0.0;
             inputs.m_clutch = 0.0;
             inputs.m_throttle = timeSeconds <= SettleSeconds
                 ? 0.0
-                : TargetThrottle * std::min((timeSeconds - SettleSeconds) / ThrottleRampSeconds, 1.0);
+                : config.m_targetThrottle *
+                    std::min((timeSeconds - SettleSeconds) / ThrottleRampSeconds, 1.0);
             return inputs;
         }
     } // namespace
 
-    VehicleFixture::VehicleFixture(chrono::ChSystem& system, double fixedStepSeconds)
+    VehicleFixture::VehicleFixture(chrono::ChSystem& system,
+        chrono::vehicle::RigidTerrain& terrain, double fixedStepSeconds,
+        const VehicleFixtureConfig& config)
         : m_fixedStepSeconds(fixedStepSeconds)
+        , m_terrain(terrain)
+        , m_config(config)
     {
         AZ_Assert(std::isfinite(fixedStepSeconds) && fixedStepSeconds > 0.0,
             "The vehicle fixture requires a finite, positive fixed step.");
-
-        auto material = chrono_types::make_shared<chrono::ChContactMaterialNSC>();
-        material->SetFriction(static_cast<float>(TerrainFixtureConfig::Friction));
-        material->SetRestitution(static_cast<float>(TerrainFixtureConfig::Restitution));
-
-        m_terrain = std::make_unique<chrono::vehicle::RigidTerrain>(&system);
-        m_terrain->AddPatch(material,
-            chrono::ChCoordsysd(
-                chrono::ChVector3d(0.0, 0.0, TerrainFixtureConfig::SurfaceZMeters), chrono::QUNIT),
-            TerrainFixtureConfig::LengthMeters,
-            TerrainFixtureConfig::WidthMeters,
-            TerrainFixtureConfig::ThicknessMeters,
-            false, 1.0, /*visualization*/ false);
-        m_terrain->Initialize();
 
         m_vehicle = std::make_unique<chrono::vehicle::hmmwv::HMMWV_Full>(&system);
         m_vehicle->SetChassisFixed(false);
@@ -72,7 +61,8 @@ namespace LDMChronoVehicle
         m_vehicle->SetTireType(chrono::vehicle::TireModelType::TMEASY);
         m_vehicle->SetTireStepSize(TireStepSeconds);
         m_vehicle->SetInitPosition(chrono::ChCoordsysd(
-            chrono::ChVector3d(0.0, 0.0, SpawnHeightMeters), chrono::QUNIT));
+            chrono::ChVector3d(config.m_spawnX, config.m_spawnY, SpawnHeightMeters),
+            chrono::QuatFromAngleZ(config.m_spawnYawRadians)));
         m_vehicle->Initialize();
 
         m_vehicle->SetChassisVisualizationType(chrono::VisualizationType::NONE);
@@ -84,14 +74,15 @@ namespace LDMChronoVehicle
 
     VehicleFixture::~VehicleFixture() = default;
 
-    void VehicleFixture::SynchronizeAndAdvance(double simulationTimeSeconds)
+    void VehicleFixture::Synchronize(double simulationTimeSeconds)
     {
-        const chrono::vehicle::DriverInputs inputs = ScriptedInputsAtTime(simulationTimeSeconds);
-        m_terrain->Synchronize(simulationTimeSeconds);
-        m_vehicle->Synchronize(simulationTimeSeconds, inputs, *m_terrain);
-        m_terrain->Advance(m_fixedStepSeconds);
-        // The system is external, so this advances vehicle subsystems (tire
-        // substeps, driveline) only; the caller performs DoStepDynamics.
+        const chrono::vehicle::DriverInputs inputs =
+            ScriptedInputsAtTime(simulationTimeSeconds, m_config);
+        m_vehicle->Synchronize(simulationTimeSeconds, inputs, m_terrain);
+    }
+
+    void VehicleFixture::Advance()
+    {
         m_vehicle->Advance(m_fixedStepSeconds);
     }
 

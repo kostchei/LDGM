@@ -2,6 +2,7 @@
 
 #include <AzCore/Math/Transform.h>
 #include <AzCore/base.h>
+#include <AzCore/std/containers/fixed_vector.h>
 
 #include <LDMChronoVehicle/LDMChronoVehicleTypes.h>
 
@@ -43,6 +44,8 @@ namespace LDMChronoVehicle
         AZ::Transform GetPose() const;
     };
 
+    using PoseSnapshotBatch = AZStd::fixed_vector<PoseSnapshotPacket, MaxActiveVehicles>;
+
     class PoseSnapshotPublisher final
     {
     public:
@@ -66,9 +69,10 @@ namespace LDMChronoVehicle
         ~PoseSnapshotReceiver();
 
         bool IsReady() const;
-        // Drains the socket; returns true when at least one valid packet
-        // arrived and writes the newest one to outPacket.
-        bool ReceiveLatest(PoseSnapshotPacket& outPacket);
+        // Drains the socket and returns the newest packet for every vehicle
+        // observed in this tick. This preserves the player and enemy packets
+        // that are published back-to-back at 20 Hz.
+        bool ReceiveLatest(PoseSnapshotBatch& outPackets);
         AZ::u64 GetReceivedCount() const;
         AZ::u64 GetRejectedCount() const;
 
