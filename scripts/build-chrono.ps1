@@ -41,6 +41,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $eigenInclude "Eigen"))) {
 $eigenIncludeCMake = $eigenInclude.Replace("\", "/")
 
 & $environment.CMake -S $environment.Chrono -B $chronoBuild -G "Visual Studio 17 2022" -A x64 `
+    -UTHRUST_INCLUDE_DIR `
     "-DCMAKE_CONFIGURATION_TYPES=$Configuration" `
     "-DCMAKE_INSTALL_PREFIX=$chronoInstall" `
     "-DEIGEN3_INCLUDE_DIR=$eigenIncludeCMake" `
@@ -53,6 +54,7 @@ $eigenIncludeCMake = $eigenInclude.Replace("\", "/")
     -DCH_ENABLE_MODULE_VEHICLE_COSIM=OFF `
     -DCH_ENABLE_OPENCRG=OFF `
     -DCH_ENABLE_OPENMP=OFF `
+    -DCMAKE_DISABLE_FIND_PACKAGE_Thrust=TRUE `
     -DCH_USE_MSVC_STATIC_RUNTIME=OFF
 if ($LASTEXITCODE -ne 0) {
     throw "Chrono configuration failed with exit code $LASTEXITCODE."

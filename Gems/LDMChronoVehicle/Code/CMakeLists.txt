@@ -17,6 +17,23 @@ if(NOT PAL_TRAIT_LDMCHRONOVEHICLE_SUPPORTED)
     return()
 endif()
 
+# Chrono is private to this Gem. No other LDGM target should discover or link it.
+find_package(Chrono 10.0.0 EXACT COMPONENTS Vehicle CONFIG REQUIRED)
+
+# O3DE resolves BUILD_DEPENDENCIES from the project root after all Gem
+# directories have been processed. Promote the package's directory-scoped
+# imported targets so they remain visible during that delayed link pass.
+foreach(imported_target IN ITEMS
+    Eigen3::Eigen
+    Chrono::Chrono_core
+    Chrono::Chrono_vehicle
+    Chrono::ChronoModels_robot
+    Chrono::ChronoModels_vehicle)
+    if(TARGET ${imported_target})
+        set_property(TARGET ${imported_target} PROPERTY IMPORTED_GLOBAL TRUE)
+    endif()
+endforeach()
+
 # The ${gem_name}.API target declares the common interface that users of this gem should depend on in their targets
 ly_add_target(
     NAME ${gem_name}.API INTERFACE
@@ -50,6 +67,9 @@ ly_add_target(
         PUBLIC
             AZ::AzCore
             AZ::AzFramework
+        PRIVATE
+            Chrono::Chrono_core
+            Chrono::Chrono_vehicle
 )
 
 # Here add ${gem_name} target, it depends on the Private Object library and Public API interface

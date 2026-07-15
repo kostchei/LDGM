@@ -36,9 +36,10 @@ The checked-in scripts assume no global engine or CMake registration. From Power
 .\scripts\configure-project.ps1
 .\scripts\build-project.ps1
 .\scripts\process-assets.ps1
+.\scripts\test-launchers.ps1
 ```
 
-External source, build and install trees are placed beside the repository under `LDGM-deps` by default and are not committed. The default Windows build uses one MSBuild project and one isolated MSVC translation unit at a time because MSVC 19.44 is unstable on the large O3DE and Chrono source sets when compiler batching is enabled.
+External source, build and install trees are placed beside the repository under `LDGM-deps` by default and are not committed. The default Windows build uses one MSBuild project and one isolated MSVC translation unit at a time because MSVC 19.44 is unstable on the large O3DE and Chrono source sets when compiler batching is enabled. The launcher smoke script uses the processed PC asset cache, waits for the Chrono lifecycle result in both client and server logs, and bounds each process to a 15-second probe.
 
 See [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) for the current stage, verified evidence and next checkpoint.
 

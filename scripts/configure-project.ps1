@@ -16,12 +16,19 @@ $userProject | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $userDirecto
 New-Item -ItemType Directory -Path $environment.O3DEPackages -Force | Out-Null
 
 $resolvedBuildDirectory = Join-Path $environment.RepoRoot $BuildDirectory
+$chronoConfigDirectory = Join-Path $environment.DependencyRoot "chrono-install\cmake"
+if (-not (Test-Path -LiteralPath (Join-Path $chronoConfigDirectory "ChronoConfig.cmake"))) {
+    throw "Chrono is not installed. Run scripts\build-chrono.ps1 first."
+}
+$chronoConfigDirectoryCMake = $chronoConfigDirectory.Replace("\", "/")
+
 & $environment.CMake `
     -S $environment.RepoRoot `
     -B $resolvedBuildDirectory `
     -G "Visual Studio 17 2022" `
     -A x64 `
-    "-DLY_3RDPARTY_PATH=$($environment.O3DEPackages)"
+    "-DLY_3RDPARTY_PATH=$($environment.O3DEPackages)" `
+    "-DChrono_DIR=$chronoConfigDirectoryCMake"
 
 if ($LASTEXITCODE -ne 0) {
     throw "O3DE project configuration failed with exit code $LASTEXITCODE."

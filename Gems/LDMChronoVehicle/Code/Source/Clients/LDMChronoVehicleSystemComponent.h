@@ -1,8 +1,9 @@
 
 #pragma once
 
+#include <memory>
+
 #include <AzCore/Component/Component.h>
-#include <AzCore/Component/TickBus.h>
 #include <LDMChronoVehicle/LDMChronoVehicleBus.h>
 
 namespace LDMChronoVehicle
@@ -10,7 +11,6 @@ namespace LDMChronoVehicle
     class LDMChronoVehicleSystemComponent
         : public AZ::Component
         , protected LDMChronoVehicleRequestBus::Handler
-        , public AZ::TickBus::Handler
     {
     public:
         AZ_COMPONENT_DECL(LDMChronoVehicleSystemComponent);
@@ -38,10 +38,9 @@ namespace LDMChronoVehicle
         void Deactivate() override;
         ////////////////////////////////////////////////////////////////////////
 
-        ////////////////////////////////////////////////////////////////////////
-        // AZTickBus interface implementation
-        void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
-        ////////////////////////////////////////////////////////////////////////
+    private:
+        struct ChronoState;
+        std::unique_ptr<ChronoState> m_chronoState;
     };
 
 } // namespace LDMChronoVehicle

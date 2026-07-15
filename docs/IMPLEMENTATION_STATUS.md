@@ -1,12 +1,12 @@
 # LDGM implementation status
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 ## Current stage
 
-**O3DE–Chrono Gem linkage — in progress**
+**T0 runtime ownership and fixed-step foundation — in progress**
 
-The recovered specification and T0–T8 acceptance contracts are present and valid. The empty O3DE client and server launchers build and remain running against a processed PC asset catalog. The pinned Project Chrono Core/Vehicle package now builds, installs and passes a standalone dynamics smoke test; the active foundation checkpoint is linking that package only through `LDMChronoVehicle`.
+The recovered specification and T0–T8 acceptance contracts are present and valid. The pinned O3DE client and server launchers build with Project Chrono linked privately through `LDMChronoVehicle`. Both roles remain alive during bounded runtime probes and log a successful Chrono lifecycle step. The active foundation checkpoint is the authoritative fixed-step adapter, capacity registry and coordinate boundary required by the rest of T0.
 
 ## Stage ledger
 
@@ -22,7 +22,8 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | Project Chrono build | Complete | Eigen 5.0.0 plus Chrono Core/Vehicle and required model export closure installed as static RelWithDebInfo libraries |
 | Standalone Chrono consumer smoke | Complete | Installed-package `find_package(Chrono COMPONENTS Vehicle)`; 120 dynamics steps; 1/1 CTest passed |
 | O3DE project and Gem scaffolding | Complete | Minimal project Gem plus Windows-only `LDMChronoVehicle` Gem |
-| T0 integration implementation | Not started | Pending |
+| O3DE–Chrono Gem linkage | Complete | Private imported targets; Profile client/server link; both 15-second launcher probes log the lifecycle smoke result |
+| T0 integration implementation | In progress | Build/link subgate complete; fixed-step ownership, coordinate/terrain sync, cockpit camera and capacity evidence pending |
 | T0 acceptance gate | Not started | `test_goals/t0_integration_spike.json` |
 | T1–T7 | Not started | Must follow preceding tranche gates |
 
@@ -59,13 +60,19 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 - Built and installed `Chrono_core`, `Chrono_vehicle`, and Chrono 10's required `ChronoModels_robot` and `ChronoModels_vehicle` export closure. Chrono's installed `Vehicle` component requires both model targets even when a consumer only uses base Vehicle symbols.
 - Normalized the configured Eigen path to CMake-style forward slashes after the standalone consumer caught invalid Windows escape sequences in the generated `ChronoConfig.cmake`.
 - Added and passed a standalone installed-package test that links the supported Vehicle target set, selects the Vehicle Y-up frame, advances a Core NSC system for 120 fixed steps, and validates elapsed simulation time and falling-body height.
+- Disabled optional Thrust discovery and cleared stale cached include paths so the installed Chrono package exports no CUDA toolkit or machine-local NVIDIA dependency.
+- Configured O3DE with the installed Chrono package and promoted its directory-scoped imported targets for O3DE's delayed project-root link pass.
+- Kept every Chrono include and type inside `LDMChronoVehicle` implementation files; the system component header exposes only an opaque private state.
+- Added a lifecycle smoke that selects the Vehicle Y-up frame, creates an NSC system, advances one 5 ms step and queues its validated result until the engine log is available.
+- Added a processed runtime bootstrap override so preprocessed client/server launches do not require a live Asset Processor connection.
+- Rebuilt the Profile GameLauncher and ServerLauncher successfully, then passed a reusable bounded runtime test in which both roles remained alive for 15 seconds and logged `Chrono Core/Vehicle lifecycle smoke passed`.
 
 ## Next checkpoint
 
-1. Teach `LDMChronoVehicle` to discover the installed Chrono package and own all Chrono includes and link dependencies.
-2. Add a minimal O3DE system component that constructs and steps a Chrono system without exposing Chrono types across the Gem boundary.
-3. Rebuild the Profile client/server launchers and run the bounded headless probes.
-4. Record the T0 integration evidence before beginning registry and deterministic fixed-step work.
+1. Define the Chrono-private authoritative simulation adapter and a deterministic fixed-step clock with timing telemetry.
+2. Add the active-vehicle registry with a hard capacity of 30, deterministic overflow rejection and idempotent release.
+3. Define and test the O3DE/Chrono axis, pose and velocity conversion boundary.
+4. Add the generic vehicle and shared-terrain fixture needed for T0 transform and terrain-alignment evidence.
 
 ## Working rules
 
