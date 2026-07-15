@@ -1,6 +1,7 @@
 
 #include "LDMChronoVehicleSystemComponent.h"
 
+#include <Clients/CockpitCameraComponent.h>
 #include <Clients/VehicleProxyComponent.h>
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
 #include <Simulation/ActiveVehicleRegistry.h>
@@ -213,6 +214,7 @@ namespace LDMChronoVehicle
             m_proxyEntity = AZStd::make_unique<AZ::Entity>("T0VehicleProxy");
             m_proxyEntity->CreateComponent<AzFramework::TransformComponent>();
             m_proxyEntity->CreateComponent<VehicleProxyComponent>(ChronoState::FixtureVehicleId);
+            m_proxyEntity->CreateComponent<CockpitCameraComponent>();
             m_proxyEntity->Init();
             m_proxyEntity->Activate();
         }

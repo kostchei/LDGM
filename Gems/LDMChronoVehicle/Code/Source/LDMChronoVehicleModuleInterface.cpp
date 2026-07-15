@@ -4,6 +4,7 @@
 
 #include <LDMChronoVehicle/LDMChronoVehicleTypeIds.h>
 
+#include <Clients/CockpitCameraComponent.h>
 #include <Clients/LDMChronoVehicleSystemComponent.h>
 #include <Clients/VehicleProxyComponent.h>
 
@@ -23,6 +24,7 @@ namespace LDMChronoVehicle
         m_descriptors.insert(m_descriptors.end(), {
             LDMChronoVehicleSystemComponent::CreateDescriptor(),
             VehicleProxyComponent::CreateDescriptor(),
+            CockpitCameraComponent::CreateDescriptor(),
             });
     }
 

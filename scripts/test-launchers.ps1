@@ -15,7 +15,8 @@ $launchers = @(
     @{ Name = "LDGM.GameLauncher.exe"; Log = "Game.log"
        Expected = @("role=client-linkage") },
     @{ Name = "LDGM.ServerLauncher.exe"; Log = "Server.log"
-       Expected = @("role=authoritative", "T0 transform trace", "T0 proxy trace") }
+       Expected = @("role=authoritative", "T0 transform trace", "T0 proxy trace",
+                    "T0 camera trace", "T0 input inventory") }
 )
 
 foreach ($launcher in $launchers) {

@@ -28,7 +28,8 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 | T0 coordinate conversion boundary | Complete | Shared right-handed Z-up frame (Chrono default ISO); component-wise pose/vector/quaternion conversion in `Simulation/CoordinateConversion`; GoogleTests include cross-engine rotation agreement |
 | T0 vehicle and shared-terrain fixture | Complete | Programmatic HMMWV on the versioned terrain patch (checksum-logged); scripted settle/ramp/drive; 14/14 GoogleTests; server probe logs per-second transform traces at real-time 200 Hz stepping |
 | T0 render proxy | Complete | `VehicleProxyComponent` entity consumes the authoritative pose after each simulation tick; probe log shows Chrono-versus-proxy error 0.000 m / max 0.040° against the 0.05 m / 1° gate |
-| T0 integration implementation | In progress | Chrono simulation and render proxy complete; cockpit camera and client snapshot evidence pending |
+| T0 cockpit camera | Complete | Camera pose derived rigidly from the proxy each frame; probe log shows 0 invalid frames, max attachment error 1.7e-5 m; input inventory logs zero input-binding assets and zero external-camera actions |
+| T0 integration implementation | In progress | Chrono simulation, render proxy and cockpit camera complete; host-to-client snapshot evidence pending |
 | T0 acceptance gate | Not started | `test_goals/t0_integration_spike.json` |
 | T1–T7 | Not started | Must follow preceding tranche gates |
 
@@ -90,10 +91,12 @@ The recovered specification and T0–T8 acceptance contracts are present and val
 - Added the public `GetActiveVehiclePose` API and the `VehicleProxyComponent` presentation proxy (ticks after the physics-slot simulation, never a second rigid body), spawned programmatically as the `T0VehicleProxy` entity on the authoritative host.
 - Extended the launcher probe to require `role=authoritative`, `T0 transform trace` and `T0 proxy trace` in the server log; captured proxy traces timestamped in simulation time with 0.000 m position error and 0.040° maximum rotation error.
 
+- Added the `CockpitCameraComponent` on the proxy entity: rigid driver-eye offset, per-frame NaN and attachment-error telemetry, and a one-time input-action inventory proving no external driving camera action exists; the launcher probe now also requires the camera trace and input inventory in the server log.
+
 ## Next checkpoint
 
-1. Attach the first-person cockpit camera to the vehicle proxy and produce the input-action inventory for T0-CAM-003.
-2. Add the headless host-to-client snapshot path required by the T0 deliverables.
+1. Add the headless host-to-client snapshot path required by the T0 deliverables (client receives authoritative vehicle poses and drives its own proxy/camera entities).
+2. Evaluate the T0 acceptance gate against `test_goals/t0_integration_spike.json` and record remaining evidence gaps (rendered driving capture, collision-input camera-shake case).
 
 ## Working rules
 

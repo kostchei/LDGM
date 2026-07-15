@@ -19,4 +19,5 @@ namespace LDMChronoVehicle
 
     // Entity Component TypeIds
     inline constexpr const char* VehicleProxyComponentTypeId = "{7E3A2A41-58D0-4A5E-9B0C-2F6D1C6B8A57}";
+    inline constexpr const char* CockpitCameraComponentTypeId = "{9C4F1B7D-2E85-4F3A-B1C6-8D9A0E5F4721}";
 } // namespace LDMChronoVehicle

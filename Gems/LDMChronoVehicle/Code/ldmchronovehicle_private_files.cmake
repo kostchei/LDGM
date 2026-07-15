@@ -2,6 +2,8 @@
 set(FILES
     Source/LDMChronoVehicleModuleInterface.cpp
     Source/LDMChronoVehicleModuleInterface.h
+    Source/Clients/CockpitCameraComponent.cpp
+    Source/Clients/CockpitCameraComponent.h
     Source/Clients/LDMChronoVehicleSystemComponent.cpp
     Source/Clients/LDMChronoVehicleSystemComponent.h
     Source/Clients/VehicleProxyComponent.cpp
