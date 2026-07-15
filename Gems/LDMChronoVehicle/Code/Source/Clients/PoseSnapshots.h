@@ -38,8 +38,8 @@ namespace LDMChronoVehicle
         double m_rotationY = 0.0;
         double m_rotationZ = 0.0;
         AZ::u32 m_terrainChecksum = 0;
-        AZ::u32 m_leftAmmo = 50;
-        AZ::u32 m_rightAmmo = 50;
+        AZ::u32 m_ammo[6] = { 50, 50, 50, 50, 50, 50 };
+        AZ::u8 m_equipped[6] = { 1, 1, 0, 0, 0, 0 };
         AZ::u32 m_conditionState = 0;
         float m_condition = 1.0f;
 
@@ -58,7 +58,7 @@ namespace LDMChronoVehicle
         bool IsReady() const;
         void Publish(double simulationTimeSeconds, VehicleId vehicleId,
             const AZ::Transform& pose, AZ::u32 terrainChecksum,
-            AZ::u32 leftAmmo, AZ::u32 rightAmmo, AZ::u32 conditionState, float condition);
+            const AZ::u32 ammo[6], const AZ::u8 equipped[6], AZ::u32 conditionState, float condition);
         AZ::u64 GetSentCount() const;
 
     private:
@@ -108,8 +108,7 @@ namespace LDMChronoVehicle
         AZ::u32 m_handbrake = 0;
         AZ::s32 m_driveMode = 1;
         AZ::u32 m_engineStarted = 1;
-        AZ::u32 m_fireLeft = 0;
-        AZ::u32 m_fireRight = 0;
+        AZ::u8 m_fireTriggers[6] = { 0, 0, 0, 0, 0, 0 };
 
         bool IsValid() const;
     };
@@ -123,7 +122,7 @@ namespace LDMChronoVehicle
         bool IsReady() const;
         void Publish(double simulationTimeSeconds, VehicleId vehicleId,
             double steering, double throttle, double braking, bool handbrake, int driveMode, bool engineStarted,
-            bool fireLeft, bool fireRight);
+            const bool fireTriggers[6]);
         AZ::u64 GetSentCount() const;
 
     private:

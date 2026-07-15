@@ -29,8 +29,15 @@ namespace LDMChronoVehicle
         bool m_handbrake = false;
         int m_driveMode = 1; // -1 = Reverse, 0 = Neutral, 1 = Forward
         bool m_engineStarted = true;
-        bool m_fireLeft = false;
-        bool m_fireRight = false;
+        bool m_fireTriggers[6] = { false, false, false, false, false, false };
+    };
+
+    struct WeaponSlot
+    {
+        AZ::Vector3 m_localOffset = AZ::Vector3::CreateZero();
+        AZ::u32 m_ammo = 50;
+        double m_cooldown = 0.0;
+        bool m_isEquipped = false;
     };
 
     struct VehicleFixtureConfig
@@ -72,6 +79,11 @@ namespace LDMChronoVehicle
         void SetLeftRifleAmmo(AZ::u32 ammo);
         void SetRightRifleAmmo(AZ::u32 ammo);
 
+        // Expanded Weapon Mount APIs
+        const WeaponSlot& GetWeaponSlot(int slotIndex) const;
+        void SetWeaponSlotAmmo(int slotIndex, AZ::u32 ammo);
+        void EquipWeapon(int slotIndex, bool equipped);
+
         // Damage & Repair APIs
         float GetCondition() const;
         void SetCondition(float condition);
@@ -92,10 +104,7 @@ namespace LDMChronoVehicle
         bool m_useLiveInputs = false;
 
         // Combat/Damage States
-        AZ::u32 m_leftAmmo = 50;
-        AZ::u32 m_rightAmmo = 50;
-        double m_leftCooldown = 0.0;
-        double m_rightCooldown = 0.0;
+        WeaponSlot m_weaponSlots[6];
         float m_zoneHealth[5] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
     };
 } // namespace LDMChronoVehicle

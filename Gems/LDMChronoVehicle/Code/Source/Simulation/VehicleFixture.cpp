@@ -71,6 +71,14 @@ namespace LDMChronoVehicle
         m_vehicle->SetSteeringVisualizationType(chrono::VisualizationType::NONE);
         m_vehicle->SetWheelVisualizationType(chrono::VisualizationType::NONE);
         m_vehicle->SetTireVisualizationType(chrono::VisualizationType::NONE);
+
+        // Initialize weapon mount slots
+        m_weaponSlots[0] = { AZ::Vector3(2.0f, -0.5f, 0.5f), 50, 0.0, true };  // Front Left
+        m_weaponSlots[1] = { AZ::Vector3(2.0f, 0.5f, 0.5f), 50, 0.0, true };   // Front Right
+        m_weaponSlots[2] = { AZ::Vector3(0.0f, 0.0f, 1.0f), 50, 0.0, false };  // Central (Roof)
+        m_weaponSlots[3] = { AZ::Vector3(0.0f, -1.0f, 0.5f), 50, 0.0, false }; // Left Side
+        m_weaponSlots[4] = { AZ::Vector3(0.0f, 1.0f, 0.5f), 50, 0.0, false };  // Right Side
+        m_weaponSlots[5] = { AZ::Vector3(-2.0f, 0.0f, 0.5f), 50, 0.0, false }; // Rear
     }
 
     VehicleFixture::~VehicleFixture() = default;
@@ -79,17 +87,15 @@ namespace LDMChronoVehicle
     {
         if (m_useLiveInputs)
         {
-            if (m_liveInputs.m_fireLeft && m_leftAmmo > 0 && simulationTimeSeconds >= m_leftCooldown)
+            for (int i = 0; i < 6; ++i)
             {
-                --m_leftAmmo;
-                m_leftCooldown = simulationTimeSeconds + 0.15;
-                AZ_Printf("LDMChronoVehicle", "Rifle fired: left ammo_left=%u\n", m_leftAmmo);
-            }
-            if (m_liveInputs.m_fireRight && m_rightAmmo > 0 && simulationTimeSeconds >= m_rightCooldown)
-            {
-                --m_rightAmmo;
-                m_rightCooldown = simulationTimeSeconds + 0.15;
-                AZ_Printf("LDMChronoVehicle", "Rifle fired: right ammo_left=%u\n", m_rightAmmo);
+                WeaponSlot& slot = m_weaponSlots[i];
+                if (slot.m_isEquipped && m_liveInputs.m_fireTriggers[i] && slot.m_ammo > 0 && simulationTimeSeconds >= slot.m_cooldown)
+                {
+                    --slot.m_ammo;
+                    slot.m_cooldown = simulationTimeSeconds + 0.15;
+                    AZ_Printf("LDMChronoVehicle", "Weapon fired slot=%d: ammo_left=%u\n", i, slot.m_ammo);
+                }
             }
         }
 
@@ -185,22 +191,40 @@ namespace LDMChronoVehicle
 
     AZ::u32 VehicleFixture::GetLeftRifleAmmo() const
     {
-        return m_leftAmmo;
+        return m_weaponSlots[0].m_ammo;
     }
 
     AZ::u32 VehicleFixture::GetRightRifleAmmo() const
     {
-        return m_rightAmmo;
+        return m_weaponSlots[1].m_ammo;
     }
 
     void VehicleFixture::SetLeftRifleAmmo(AZ::u32 ammo)
     {
-        m_leftAmmo = ammo;
+        m_weaponSlots[0].m_ammo = ammo;
     }
 
     void VehicleFixture::SetRightRifleAmmo(AZ::u32 ammo)
     {
-        m_rightAmmo = ammo;
+        m_weaponSlots[1].m_ammo = ammo;
+    }
+
+    const WeaponSlot& VehicleFixture::GetWeaponSlot(int slotIndex) const
+    {
+        AZ_Assert(slotIndex >= 0 && slotIndex < 6, "Invalid weapon slot index.");
+        return m_weaponSlots[slotIndex];
+    }
+
+    void VehicleFixture::SetWeaponSlotAmmo(int slotIndex, AZ::u32 ammo)
+    {
+        AZ_Assert(slotIndex >= 0 && slotIndex < 6, "Invalid weapon slot index.");
+        m_weaponSlots[slotIndex].m_ammo = ammo;
+    }
+
+    void VehicleFixture::EquipWeapon(int slotIndex, bool equipped)
+    {
+        AZ_Assert(slotIndex >= 0 && slotIndex < 6, "Invalid weapon slot index.");
+        m_weaponSlots[slotIndex].m_isEquipped = equipped;
     }
 
     float VehicleFixture::GetCondition() const

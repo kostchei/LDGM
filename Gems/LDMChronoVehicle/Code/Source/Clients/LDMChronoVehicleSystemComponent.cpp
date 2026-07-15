@@ -389,8 +389,10 @@ namespace LDMChronoVehicle
                         inputs.m_handbrake = inputPacket.m_handbrake != 0;
                         inputs.m_driveMode = inputPacket.m_driveMode;
                         inputs.m_engineStarted = inputPacket.m_engineStarted != 0;
-                        inputs.m_fireLeft = inputPacket.m_fireLeft != 0;
-                        inputs.m_fireRight = inputPacket.m_fireRight != 0;
+                        for (int i = 0; i < 6; ++i)
+                        {
+                            inputs.m_fireTriggers[i] = inputPacket.m_fireTriggers[i] != 0;
+                        }
                         vehicle.m_fixture->SetLiveInputs(inputs);
                     }
                 }
@@ -494,13 +496,20 @@ namespace LDMChronoVehicle
                     simulationTime + SnapshotConfig::PublishIntervalSeconds;
                 for (const ChronoState::VehicleEntry& vehicle : m_chronoState->m_vehicles)
                 {
+                    AZ::u32 snapshotAmmo[6];
+                    AZ::u8 snapshotEquipped[6];
+                    for (int i = 0; i < 6; ++i)
+                    {
+                        snapshotAmmo[i] = vehicle.m_fixture->GetWeaponSlot(i).m_ammo;
+                        snapshotEquipped[i] = vehicle.m_fixture->GetWeaponSlot(i).m_isEquipped ? 1 : 0;
+                    }
                     m_chronoState->m_snapshotPublisher->Publish(
                         simulationTime,
                         vehicle.m_vehicleId,
                         vehicle.m_fixture->GetChassisPose(),
                         telemetry.m_terrainChecksum,
-                        vehicle.m_fixture->GetLeftRifleAmmo(),
-                        vehicle.m_fixture->GetRightRifleAmmo(),
+                        snapshotAmmo,
+                        snapshotEquipped,
                         vehicle.m_fixture->GetConditionState(),
                         vehicle.m_fixture->GetCondition());
                 }
@@ -517,8 +526,7 @@ namespace LDMChronoVehicle
         bool gearUpPressed = false;
         bool gearDownPressed = false;
         bool engineStartPressed = false;
-        bool targetFireLeft = false;
-        bool targetFireRight = false;
+        bool targetFireTriggers[6] = { false, false, false, false, false, false };
 
 #if defined(AZ_PLATFORM_WINDOWS)
         // 1. Keyboard & Mouse Firing
@@ -556,11 +564,27 @@ namespace LDMChronoVehicle
         }
         if (GetAsyncKeyState('Q') & 0x8000 || GetAsyncKeyState(VK_LBUTTON) & 0x8000)
         {
-            targetFireLeft = true;
+            targetFireTriggers[0] = true;
         }
         if (GetAsyncKeyState('E') & 0x8000 || GetAsyncKeyState(VK_RBUTTON) & 0x8000)
         {
-            targetFireRight = true;
+            targetFireTriggers[1] = true;
+        }
+        if (GetAsyncKeyState('1') & 0x8000)
+        {
+            targetFireTriggers[2] = true;
+        }
+        if (GetAsyncKeyState('2') & 0x8000)
+        {
+            targetFireTriggers[3] = true;
+        }
+        if (GetAsyncKeyState('3') & 0x8000)
+        {
+            targetFireTriggers[4] = true;
+        }
+        if (GetAsyncKeyState('4') & 0x8000)
+        {
+            targetFireTriggers[5] = true;
         }
 
         // 2. Gamepad via XInput (dynamically loaded)
@@ -623,11 +647,19 @@ namespace LDMChronoVehicle
                 }
                 if (state.Gamepad.wButtons & XINPUT_GAMEPAD_X)
                 {
-                    targetFireLeft = true;
+                    targetFireTriggers[0] = true;
                 }
                 if (state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB)
                 {
-                    targetFireRight = true;
+                    targetFireTriggers[1] = true;
+                }
+                if (state.Gamepad.wButtons & XINPUT_GAMEPAD_Y)
+                {
+                    targetFireTriggers[2] = true;
+                }
+                if (state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB)
+                {
+                    targetFireTriggers[3] = true;
                 }
             }
         }
@@ -674,7 +706,7 @@ namespace LDMChronoVehicle
             m_inputPublisher->Publish(lastSimTime, ChronoState::PlayerVehicleId,
                 m_clientSteering, m_clientThrottle, m_clientBrake, m_clientHandbrake,
                 m_clientDriveMode, m_clientEngineStarted,
-                targetFireLeft, targetFireRight);
+                targetFireTriggers);
         }
 
         if (!snapshotsReceived)
@@ -774,12 +806,16 @@ namespace LDMChronoVehicle
                     m_clientEngineStarted ? "true" : "false");
 
                 AZ_Printf("LDMChronoVehicle",
-                    "T1 warning trace: t=%.3f state=%u condition=%.3f left_ammo=%u right_ammo=%u\n",
+                    "T1 warning trace: t=%.3f state=%u condition=%.3f ammo_0=%u ammo_1=%u ammo_2=%u ammo_3=%u ammo_4=%u ammo_5=%u\n",
                     packet.m_simulationTimeSeconds,
                     packet.m_conditionState,
                     static_cast<double>(packet.m_condition),
-                    packet.m_leftAmmo,
-                    packet.m_rightAmmo);
+                    packet.m_ammo[0],
+                    packet.m_ammo[1],
+                    packet.m_ammo[2],
+                    packet.m_ammo[3],
+                    packet.m_ammo[4],
+                    packet.m_ammo[5]);
 
                 const char* soundStateStr = "normal";
                 if (packet.m_conditionState == 1) soundStateStr = "distressed_engine";

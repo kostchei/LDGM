@@ -75,8 +75,8 @@ namespace LDMChronoVehicle
         PoseSnapshotPacket packet;
         packet.m_vehicleId = 1;
         packet.m_simulationTimeSeconds = 0.5;
-        packet.m_leftAmmo = 45;
-        packet.m_rightAmmo = 40;
+        packet.m_ammo[0] = 45;
+        packet.m_ammo[5] = 40;
         packet.m_conditionState = 1;
         packet.m_condition = 0.5f;
 
@@ -97,7 +97,7 @@ namespace LDMChronoVehicle
         EXPECT_FALSE(packet.IsValid());
 
         packet.m_conditionState = 1;
-        packet.m_leftAmmo = 120;
+        packet.m_ammo[0] = 120;
         EXPECT_FALSE(packet.IsValid());
     }
 
@@ -106,8 +106,8 @@ namespace LDMChronoVehicle
         VehicleInputPacket packet;
         packet.m_vehicleId = 1;
         packet.m_simulationTimeSeconds = 0.5;
-        packet.m_fireLeft = 1;
-        packet.m_fireRight = 1;
+        packet.m_fireTriggers[0] = 1;
+        packet.m_fireTriggers[5] = 1;
 
         EXPECT_TRUE(packet.IsValid());
     }
@@ -117,7 +117,7 @@ namespace LDMChronoVehicle
         VehicleInputPacket packet;
         packet.m_vehicleId = 1;
         packet.m_simulationTimeSeconds = 0.5;
-        packet.m_fireLeft = 2;
+        packet.m_fireTriggers[0] = 2;
 
         EXPECT_FALSE(packet.IsValid());
     }

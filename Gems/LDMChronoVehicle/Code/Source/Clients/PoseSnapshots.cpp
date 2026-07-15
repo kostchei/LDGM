@@ -74,7 +74,15 @@ namespace LDMChronoVehicle
         const bool rotationValid = std::isfinite(rotationLengthSquared) &&
             rotationLengthSquared > 0.99 && rotationLengthSquared < 1.01;
         const bool conditionValid = m_condition >= 0.0f && m_condition <= 1.01f && m_conditionState <= 3;
-        const bool ammoValid = m_leftAmmo <= 100 && m_rightAmmo <= 100;
+        bool ammoValid = true;
+        for (int i = 0; i < 6; ++i)
+        {
+            if (m_ammo[i] > 100 || m_equipped[i] > 1)
+            {
+                ammoValid = false;
+                break;
+            }
+        }
         return headerValid && payloadFinite && rotationValid && conditionValid && ammoValid &&
             m_simulationTimeSeconds >= 0.0 && m_vehicleId != InvalidVehicleId;
     }
@@ -116,7 +124,7 @@ namespace LDMChronoVehicle
 
     void PoseSnapshotPublisher::Publish(double simulationTimeSeconds, VehicleId vehicleId,
         const AZ::Transform& pose, AZ::u32 terrainChecksum,
-        AZ::u32 leftAmmo, AZ::u32 rightAmmo, AZ::u32 conditionState, float condition)
+        const AZ::u32 ammo[6], const AZ::u8 equipped[6], AZ::u32 conditionState, float condition)
     {
         if (!IsReady())
         {
@@ -136,8 +144,11 @@ namespace LDMChronoVehicle
         packet.m_rotationY = static_cast<double>(rotation.GetY());
         packet.m_rotationZ = static_cast<double>(rotation.GetZ());
         packet.m_terrainChecksum = terrainChecksum;
-        packet.m_leftAmmo = leftAmmo;
-        packet.m_rightAmmo = rightAmmo;
+        for (int i = 0; i < 6; ++i)
+        {
+            packet.m_ammo[i] = ammo[i];
+            packet.m_equipped[i] = equipped[i];
+        }
         packet.m_conditionState = conditionState;
         packet.m_condition = condition;
 
@@ -243,7 +254,9 @@ namespace LDMChronoVehicle
             m_throttle >= 0.0 && m_throttle <= 1.05 &&
             m_braking >= 0.0 && m_braking <= 1.05 &&
             m_driveMode >= -1 && m_driveMode <= 1 &&
-            m_fireLeft <= 1 && m_fireRight <= 1;
+            m_fireTriggers[0] <= 1 && m_fireTriggers[1] <= 1 &&
+            m_fireTriggers[2] <= 1 && m_fireTriggers[3] <= 1 &&
+            m_fireTriggers[4] <= 1 && m_fireTriggers[5] <= 1;
         return headerValid && payloadFinite && valuesInBounds &&
             m_simulationTimeSeconds >= 0.0 && m_vehicleId != InvalidVehicleId;
     }
@@ -271,7 +284,7 @@ namespace LDMChronoVehicle
 
     void VehicleInputPublisher::Publish(double simulationTimeSeconds, VehicleId vehicleId,
         double steering, double throttle, double braking, bool handbrake, int driveMode, bool engineStarted,
-        bool fireLeft, bool fireRight)
+        const bool fireTriggers[6])
     {
         if (!IsReady())
         {
@@ -287,8 +300,10 @@ namespace LDMChronoVehicle
         packet.m_handbrake = handbrake ? 1 : 0;
         packet.m_driveMode = driveMode;
         packet.m_engineStarted = engineStarted ? 1 : 0;
-        packet.m_fireLeft = fireLeft ? 1 : 0;
-        packet.m_fireRight = fireRight ? 1 : 0;
+        for (int i = 0; i < 6; ++i)
+        {
+            packet.m_fireTriggers[i] = fireTriggers[i] ? 1 : 0;
+        }
 
         const AZ::s32 sent = AZ::AzSock::Send(m_socket,
             reinterpret_cast<const char*>(&packet), sizeof(packet), 0);

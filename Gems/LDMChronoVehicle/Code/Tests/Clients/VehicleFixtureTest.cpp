@@ -176,6 +176,29 @@ namespace LDMChronoVehicle
         EXPECT_GT(finalSpeeds[0], finalSpeeds[4]);
     }
 
+    TEST(VehicleFixtureTests, VerifyWeaponMountPositions)
+    {
+        chrono::ChSystemNSC system;
+        system.SetGravitationalAcceleration(-9.81 * chrono::vehicle::ChWorldFrame::Vertical());
+        TerrainFixture terrain(system);
+        constexpr double fixedStep = 0.005;
+        VehicleFixtureConfig config;
+        VehicleFixture fixture(system, terrain.GetTerrain(), fixedStep, config);
+
+        EXPECT_NEAR(fixture.GetWeaponSlot(0).m_localOffset.GetX(), 2.0f, 1e-4);
+        EXPECT_NEAR(fixture.GetWeaponSlot(0).m_localOffset.GetY(), -0.5f, 1e-4);
+        
+        EXPECT_NEAR(fixture.GetWeaponSlot(1).m_localOffset.GetX(), 2.0f, 1e-4);
+        EXPECT_NEAR(fixture.GetWeaponSlot(1).m_localOffset.GetY(), 0.5f, 1e-4);
+
+        EXPECT_NEAR(fixture.GetWeaponSlot(2).m_localOffset.GetX(), 0.0f, 1e-4);
+        EXPECT_NEAR(fixture.GetWeaponSlot(2).m_localOffset.GetZ(), 1.0f, 1e-4);
+
+        EXPECT_NEAR(fixture.GetWeaponSlot(3).m_localOffset.GetY(), -1.0f, 1e-4);
+        EXPECT_NEAR(fixture.GetWeaponSlot(4).m_localOffset.GetY(), 1.0f, 1e-4);
+        EXPECT_NEAR(fixture.GetWeaponSlot(5).m_localOffset.GetX(), -2.0f, 1e-4);
+    }
+
     TEST(VehicleFixtureTests, VerifyRifleIndependentAmmunition)
     {
         chrono::ChSystemNSC system;
@@ -185,25 +208,25 @@ namespace LDMChronoVehicle
         VehicleFixtureConfig config;
         VehicleFixture fixture(system, terrain.GetTerrain(), fixedStep, config);
 
-        EXPECT_EQ(fixture.GetLeftRifleAmmo(), 50);
-        EXPECT_EQ(fixture.GetRightRifleAmmo(), 50);
+        EXPECT_TRUE(fixture.GetWeaponSlot(0).m_isEquipped);
+        EXPECT_TRUE(fixture.GetWeaponSlot(1).m_isEquipped);
 
         LiveVehicleInputs inputs;
-        inputs.m_fireLeft = true;
-        inputs.m_fireRight = false;
+        inputs.m_fireTriggers[0] = true;
         fixture.SetLiveInputs(inputs);
 
         fixture.Synchronize(0.0);
-        EXPECT_EQ(fixture.GetLeftRifleAmmo(), 49);
-        EXPECT_EQ(fixture.GetRightRifleAmmo(), 50);
+        EXPECT_EQ(fixture.GetWeaponSlot(0).m_ammo, 49);
+        EXPECT_EQ(fixture.GetWeaponSlot(1).m_ammo, 50);
 
-        inputs.m_fireLeft = false;
-        inputs.m_fireRight = true;
+        fixture.EquipWeapon(2, true);
+        inputs.m_fireTriggers[0] = false;
+        inputs.m_fireTriggers[2] = true;
         fixture.SetLiveInputs(inputs);
 
         fixture.Synchronize(0.2);
-        EXPECT_EQ(fixture.GetLeftRifleAmmo(), 49);
-        EXPECT_EQ(fixture.GetRightRifleAmmo(), 49);
+        EXPECT_EQ(fixture.GetWeaponSlot(0).m_ammo, 49);
+        EXPECT_EQ(fixture.GetWeaponSlot(2).m_ammo, 49);
     }
 
     TEST(VehicleFixtureTests, VerifyDamagedVehiclePerformanceLoss)
