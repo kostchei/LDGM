@@ -99,6 +99,34 @@ namespace LDMChronoVehicle
             }
         }
 
+        // Fuel consumption
+        if (m_useLiveInputs && m_liveInputs.m_engineStarted && m_fuelRatio > 0.0f)
+        {
+            double idleRate = 0.0005;
+            double throttleRate = 0.005 * m_liveInputs.m_throttle;
+            double rate = idleRate + throttleRate;
+            m_fuelRatio = std::max(0.0f, m_fuelRatio - static_cast<float>(rate * m_fixedStepSeconds));
+            if (m_fuelRatio <= 0.0f)
+            {
+                m_liveInputs.m_engineStarted = false;
+                AZ_Printf("LDMChronoVehicle", "Vehicle out of fuel! Engine stopped.\n");
+            }
+        }
+
+        // Automated coordinate transitions for vertical slice
+        AZ::Transform pose = GetChassisPose();
+        float posX = pose.GetTranslation().GetX();
+        if (m_missionState == MissionState::Departed && posX >= 150.0f)
+        {
+            SetMissionState(MissionState::ObjectiveReached);
+            AZ_Printf("LDMChronoVehicle", "Mission objective reached at X=%.3f\n", posX);
+        }
+        else if (m_missionState == MissionState::ObjectiveReached && posX <= 10.0f)
+        {
+            SetMissionState(MissionState::Returned);
+            AZ_Printf("LDMChronoVehicle", "Mission return to Bartertown completed at X=%.3f\n", posX);
+        }
+
         chrono::vehicle::DriverInputs inputs;
         if (m_useLiveInputs)
         {
@@ -309,5 +337,191 @@ namespace LDMChronoVehicle
         {
             m_zoneHealth[i] = 1.0f;
         }
+    }
+
+    MissionState VehicleFixture::GetMissionState() const
+    {
+        return m_missionState;
+    }
+
+    void VehicleFixture::SetMissionState(MissionState state)
+    {
+        m_missionState = state;
+        
+        auto addStep = [this](const AZStd::string& step) {
+            if (AZStd::find(m_completedSteps.begin(), m_completedSteps.end(), step) == m_completedSteps.end())
+            {
+                m_completedSteps.push_back(step);
+            }
+        };
+
+        switch (state)
+        {
+        case MissionState::Accepted:
+            addStep("accept");
+            break;
+        case MissionState::CargoLoaded:
+            addStep("accept");
+            addStep("load");
+            break;
+        case MissionState::Departed:
+            addStep("accept");
+            addStep("load");
+            addStep("depart");
+            break;
+        case MissionState::ObjectiveReached:
+            addStep("accept");
+            addStep("load");
+            addStep("depart");
+            addStep("objective");
+            break;
+        case MissionState::Returned:
+            addStep("accept");
+            addStep("load");
+            addStep("depart");
+            addStep("objective");
+            addStep("return");
+            break;
+        case MissionState::Repaired:
+            addStep("accept");
+            addStep("load");
+            addStep("depart");
+            addStep("objective");
+            addStep("return");
+            addStep("repair");
+            break;
+        case MissionState::Refueled:
+            addStep("accept");
+            addStep("load");
+            addStep("depart");
+            addStep("objective");
+            addStep("return");
+            addStep("repair");
+            addStep("refuel");
+            break;
+        case MissionState::Rearmed:
+            addStep("accept");
+            addStep("load");
+            addStep("depart");
+            addStep("objective");
+            addStep("return");
+            addStep("repair");
+            addStep("refuel");
+            addStep("rearm");
+            break;
+        case MissionState::PartInstalled:
+            addStep("accept");
+            addStep("load");
+            addStep("depart");
+            addStep("objective");
+            addStep("return");
+            addStep("repair");
+            addStep("refuel");
+            addStep("rearm");
+            addStep("install_part");
+            break;
+        default:
+            break;
+        }
+    }
+
+    void VehicleFixture::ProcessMissionCommand(AZ::u32 command)
+    {
+        if (command == 0)
+        {
+            return;
+        }
+
+        switch (command)
+        {
+        case 1:
+            if (m_missionState == MissionState::None)
+            {
+                SetMissionState(MissionState::Accepted);
+            }
+            break;
+        case 2:
+            if (m_missionState == MissionState::Accepted)
+            {
+                SetMissionState(MissionState::CargoLoaded);
+            }
+            break;
+        case 3:
+            if (m_missionState == MissionState::CargoLoaded)
+            {
+                SetMissionState(MissionState::Departed);
+            }
+            break;
+        case 4:
+            if (m_missionState == MissionState::Departed)
+            {
+                SetMissionState(MissionState::ObjectiveReached);
+            }
+            break;
+        case 5:
+            if (m_missionState == MissionState::ObjectiveReached)
+            {
+                SetMissionState(MissionState::Returned);
+            }
+            break;
+        case 6:
+            if (m_missionState == MissionState::Returned)
+            {
+                RepairVehicle();
+                SetMissionState(MissionState::Repaired);
+            }
+            break;
+        case 7:
+            if (m_missionState == MissionState::Repaired)
+            {
+                Refuel();
+                SetMissionState(MissionState::Refueled);
+            }
+            break;
+        case 8:
+            if (m_missionState == MissionState::Refueled)
+            {
+                for (int i = 0; i < 6; ++i)
+                {
+                    m_weaponSlots[i].m_ammo = 50;
+                }
+                SetMissionState(MissionState::Rearmed);
+            }
+            break;
+        case 9:
+            if (m_missionState == MissionState::Rearmed)
+            {
+                EquipWeapon(2, true);
+                SetMissionState(MissionState::PartInstalled);
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    float VehicleFixture::GetFuelRatio() const
+    {
+        return m_fuelRatio;
+    }
+
+    void VehicleFixture::SetFuelRatio(float fuel)
+    {
+        m_fuelRatio = std::clamp(fuel, 0.0f, 1.0f);
+    }
+
+    void VehicleFixture::Refuel()
+    {
+        m_fuelRatio = 1.0f;
+    }
+
+    bool VehicleFixture::HasCompletedStep(const AZStd::string& step) const
+    {
+        return AZStd::find(m_completedSteps.begin(), m_completedSteps.end(), step) != m_completedSteps.end();
+    }
+
+    AZStd::vector<AZStd::string> VehicleFixture::GetCompletedSteps() const
+    {
+        return m_completedSteps;
     }
 } // namespace LDMChronoVehicle

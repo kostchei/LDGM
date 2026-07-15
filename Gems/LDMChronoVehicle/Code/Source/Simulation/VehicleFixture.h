@@ -1,6 +1,9 @@
 #pragma once
 
 #include <AzCore/Math/Transform.h>
+#include <AzCore/std/containers/vector.h>
+#include <AzCore/std/string/string.h>
+#include <AzCore/std/algorithm.h>
 
 #include <memory>
 
@@ -21,6 +24,20 @@ namespace chrono
 
 namespace LDMChronoVehicle
 {
+    enum class MissionState : AZ::u32
+    {
+        None = 0,
+        Accepted,
+        CargoLoaded,
+        Departed,
+        ObjectiveReached,
+        Returned,
+        Repaired,
+        Refueled,
+        Rearmed,
+        PartInstalled
+    };
+
     struct LiveVehicleInputs
     {
         double m_steering = 0.0;
@@ -94,6 +111,16 @@ namespace LDMChronoVehicle
         void RepairZone(int zoneId);
         void RepairVehicle();
 
+        // Mission Loop APIs
+        MissionState GetMissionState() const;
+        void SetMissionState(MissionState state);
+        void ProcessMissionCommand(AZ::u32 command);
+        float GetFuelRatio() const;
+        void SetFuelRatio(float fuel);
+        void Refuel();
+        bool HasCompletedStep(const AZStd::string& step) const;
+        AZStd::vector<AZStd::string> GetCompletedSteps() const;
+
     private:
         double m_fixedStepSeconds = 0.0;
         chrono::vehicle::RigidTerrain& m_terrain;
@@ -106,5 +133,10 @@ namespace LDMChronoVehicle
         // Combat/Damage States
         WeaponSlot m_weaponSlots[6];
         float m_zoneHealth[5] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
+
+        // Mission Loop States
+        MissionState m_missionState = MissionState::None;
+        float m_fuelRatio = 1.0f;
+        AZStd::vector<AZStd::string> m_completedSteps;
     };
 } // namespace LDMChronoVehicle

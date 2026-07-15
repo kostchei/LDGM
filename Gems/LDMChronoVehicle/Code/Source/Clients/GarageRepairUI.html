@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gorka Morka - Garage Repair Dashboard</title>
+    <title>Gorka Morka - Mission & Garage Terminal</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #0a0a0f;
-            --bg-surface: #12121e;
-            --bg-card: #18182a;
+            --bg-base: #07070c;
+            --bg-surface: #0e0e1a;
+            --bg-card: #141426;
             --color-healthy: #00ff88;
             --color-damaged: #ffaa00;
             --color-critical: #ff3b30;
+            --color-mission: #00d9ff;
             --text-primary: #f5f5f7;
             --text-secondary: #8e8e93;
             --border-glow: rgba(0, 255, 136, 0.15);
@@ -27,15 +28,15 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 90vh;
+            min-height: 95vh;
         }
 
         .dashboard-container {
-            width: 1000px;
-            background: linear-gradient(145deg, var(--bg-surface), #151525);
+            width: 1200px;
+            background: linear-gradient(145deg, var(--bg-surface), #121222);
             border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 
                         inset 0 1px 0 rgba(255, 255, 255, 0.1);
             overflow: hidden;
             display: flex;
@@ -45,7 +46,7 @@
         /* Header block */
         .header {
             padding: 24px 32px;
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.3);
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
             justify-content: space-between;
@@ -55,7 +56,7 @@
         .header h1 {
             margin: 0;
             font-family: 'Space Grotesk', sans-serif;
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 700;
             letter-spacing: 1px;
             background: linear-gradient(90deg, #ff8a00, #ff007a);
@@ -63,179 +64,255 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .scrap-counter {
-            font-size: 18px;
+        .resources-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .resource-badge {
+            font-size: 16px;
             font-weight: 600;
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid var(--color-healthy);
             padding: 8px 18px;
             border-radius: 30px;
-            color: var(--color-healthy);
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.1);
             display: flex;
             align-items: center;
             gap: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
         }
 
-        /* Main Workspace layout */
+        .scrap-badge {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid var(--color-healthy);
+            color: var(--color-healthy);
+        }
+
+        .fuel-badge {
+            background: rgba(0, 217, 255, 0.1);
+            border: 1px solid var(--color-mission);
+            color: var(--color-mission);
+        }
+
+        /* Workspace Grid (3 columns) */
         .workspace {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1.1fr 1.2fr 1fr;
             padding: 32px;
-            gap: 32px;
+            gap: 28px;
         }
 
-        /* Left Pane: Interactive schematic */
+        .panel-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 8px;
+        }
+
+        /* Columns layout */
+        .col {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* Column 1: Mission Control */
+        .route-card {
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.2s ease;
+            margin-bottom: 10px;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .route-card.selected {
+            border-color: var(--color-mission);
+            background: rgba(0, 217, 255, 0.05);
+            box-shadow: 0 0 10px rgba(0, 217, 255, 0.15);
+        }
+
+        .route-title {
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .route-risk {
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .risk-low { color: var(--color-healthy); background: rgba(0,255,136,0.1); }
+        .risk-medium { color: var(--color-damaged); background: rgba(255,170,0,0.1); }
+
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: color 0.2s ease;
+        }
+
+        .checklist-item.active {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .checklist-item.completed {
+            color: var(--color-healthy);
+            text-decoration: line-through;
+        }
+
+        .checklist-checkbox {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .completed .checklist-checkbox {
+            border-color: var(--color-healthy);
+            background: var(--color-healthy);
+            color: var(--bg-base);
+        }
+
+        .active .checklist-checkbox {
+            border-color: var(--color-mission);
+            box-shadow: 0 0 8px var(--color-mission);
+        }
+
+        /* Column 2: Schematic */
         .schematic-pane {
-            flex: 1.2;
             background: var(--bg-card);
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.02);
-            position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 20px;
             height: 480px;
+            position: relative;
         }
 
-        .schematic-title {
-            position: absolute;
-            top: 16px;
-            left: 20px;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--text-secondary);
-        }
-
-        /* Wireframe Vehicle drawing */
         .wireframe-container {
             width: 320px;
-            height: 420px;
+            height: 380px;
             position: relative;
-            background: radial-gradient(circle, rgba(24, 24, 42, 0.8) 0%, rgba(10, 10, 15, 0.9) 100%);
+            background: radial-gradient(circle, rgba(0, 255, 136, 0.03) 0%, transparent 70%);
             border-radius: 12px;
             border: 1px dashed rgba(255, 255, 255, 0.05);
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
-        /* Interactive zones */
         .zone-overlay {
             position: absolute;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 8px;
             display: flex;
-            justify-content: center;
             align-items: center;
-            font-size: 11px;
+            justify-content: center;
+            font-size: 12px;
             font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             text-transform: uppercase;
             box-sizing: border-box;
             border: 2px solid transparent;
-            text-align: center;
         }
 
-        .zone-overlay:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 15px currentColor;
-            z-index: 10;
-        }
-
-        .zone-overlay.selected {
-            border-color: #fff;
-            box-shadow: 0 0 20px currentColor, 0 0 0 2px #fff;
-        }
-
-        /* Front Armor zone position */
+        /* Precise wireframe boxes layout */
         #zone-front {
+            width: 140px;
+            height: 60px;
             top: 25px;
-            left: 80px;
-            width: 160px;
-            height: 60px;
+            left: 90px;
         }
 
-        /* Running Gear positions */
-        #zone-wheels {
-            bottom: 25px;
-            left: 80px;
-            width: 160px;
-            height: 60px;
-        }
-
-        /* Left Side Panel position */
         #zone-left {
-            top: 100px;
-            left: 30px;
             width: 60px;
-            height: 200px;
+            height: 160px;
+            top: 100px;
+            left: 20px;
         }
 
-        /* Right Side Panel position */
         #zone-right {
-            top: 100px;
-            right: 30px;
             width: 60px;
-            height: 200px;
+            height: 160px;
+            top: 100px;
+            left: 240px;
         }
 
-        /* Mounted Equipment position */
         #zone-mounts {
-            top: 140px;
-            left: 110px;
-            width: 100px;
-            height: 120px;
+            width: 120px;
+            height: 80px;
+            top: 120px;
+            left: 100px;
         }
 
-        /* Status Colors */
+        #zone-wheels {
+            width: 280px;
+            height: 50px;
+            bottom: 30px;
+            left: 20px;
+        }
+
+        /* Severity color states */
         .state-healthy {
-            background-color: rgba(0, 255, 136, 0.15);
+            background: rgba(0, 255, 136, 0.08);
+            border-color: rgba(0, 255, 136, 0.3);
             color: var(--color-healthy);
-            border: 1px solid var(--color-healthy);
+        }
+        .state-healthy:hover, .state-healthy.selected {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: var(--color-healthy);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.25);
         }
 
         .state-damaged {
-            background-color: rgba(255, 170, 0, 0.15);
+            background: rgba(255, 170, 0, 0.1);
+            border-color: rgba(255, 170, 0, 0.4);
             color: var(--color-damaged);
-            border: 1px solid var(--color-damaged);
+        }
+        .state-damaged:hover, .state-damaged.selected {
+            background: rgba(255, 170, 0, 0.22);
+            border-color: var(--color-damaged);
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.3);
         }
 
         .state-critical {
-            background-color: rgba(255, 59, 48, 0.15);
+            background: rgba(255, 59, 48, 0.12);
+            border-color: rgba(255, 59, 48, 0.4);
             color: var(--color-critical);
-            border: 1px solid var(--color-critical);
+        }
+        .state-critical:hover, .state-critical.selected {
+            background: rgba(255, 59, 48, 0.26);
+            border-color: var(--color-critical);
+            box-shadow: 0 0 15px rgba(255, 59, 48, 0.4);
         }
 
-        /* Right Pane: Controls and details */
-        .controls-pane {
-            flex: 0.8;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .card {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.02);
-        }
-
-        .card-title {
-            margin: 0 0 16px 0;
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-primary);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* Detailed zone inspector */
+        /* Column 3: Inspector & Diagnostics */
         .detail-row {
             display: flex;
             justify-content: space-between;
@@ -252,58 +329,53 @@
         }
 
         .health-bar-container {
-            height: 8px;
+            height: 6px;
             background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
+            border-radius: 3px;
             overflow: hidden;
-            margin-top: 6px;
             margin-bottom: 18px;
+            margin-top: 4px;
         }
 
         .health-bar-fill {
             height: 100%;
-            border-radius: 4px;
-            transition: width 0.4s ease-out;
+            width: 100%;
+            transition: width 0.3s ease;
         }
 
-        /* Diagnostic and assertions panel */
-        .diagnostic-box {
-            font-family: 'Space Grotesk', monospace;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            line-height: 1.5;
-        }
-
-        .diag-ok {
-            color: var(--color-healthy);
-        }
-
-        /* Action Buttons */
         .btn {
             width: 100%;
-            padding: 14px;
-            border-radius: 8px;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.5px;
             border: none;
-            font-family: 'Outfit', sans-serif;
-            font-size: 16px;
-            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            margin-top: 10px;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #00ff88 0%, #00aa50 100%);
+            background: var(--color-healthy);
             color: #05050f;
             box-shadow: 0 4px 15px rgba(0, 255, 136, 0.2);
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
+            transform: translateY(-1px);
             box-shadow: 0 6px 20px rgba(0, 255, 136, 0.35);
+        }
+
+        .btn-mission {
+            background: var(--color-mission);
+            color: #05050f;
+            box-shadow: 0 4px 15px rgba(0, 217, 255, 0.2);
+        }
+
+        .btn-mission:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 217, 255, 0.35);
         }
 
         .btn-secondary {
@@ -314,6 +386,22 @@
 
         .btn-secondary:hover {
             background: rgba(255, 255, 255, 0.1);
+        }
+
+        .diagnostic-box {
+            background: #090912;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .diag-ok {
+            color: var(--color-healthy);
+            font-weight: 700;
         }
 
         .mock-controls {
@@ -337,6 +425,36 @@
         .mock-btn:hover {
             background: rgba(255, 59, 48, 0.25);
         }
+
+        /* Weapons Inventory Section */
+        .weapon-mount-list {
+            margin-top: 12px;
+        }
+
+        .weapon-mount-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+
+        .mount-tag {
+            background: rgba(255,255,255,0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .equipped-status {
+            color: var(--color-healthy);
+        }
+
+        .unequipped-status {
+            color: var(--text-secondary);
+        }
     </style>
 </head>
 <body>
@@ -344,20 +462,57 @@
 <div class="dashboard-container">
     <!-- Header Block -->
     <div class="header">
-        <h1>GARAGE REPAIR SCHEMATIC</h1>
-        <div class="scrap-counter" id="scrap-counter">
-            <span>⚙️</span> <span id="scrap-value">200</span> SCRAP
+        <h1>GORKA MORKA MISSION & REFIT TERMINAL</h1>
+        <div class="resources-row">
+            <div class="resource-badge fuel-badge">
+                <span>🔋</span> <span id="fuel-value">100</span>% H₂ CELL
+            </div>
+            <div class="resource-badge scrap-badge">
+                <span>⚙️</span> <span id="scrap-value">200</span> SCRAP
+            </div>
         </div>
     </div>
 
     <!-- Main Workspace -->
     <div class="workspace">
         
-        <!-- Left schematic view -->
+        <!-- Column 1: Mission Control -->
+        <div class="col">
+            <div class="card">
+                <div class="panel-title">🗺️ Route Planner</div>
+                <div class="route-card selected" id="route-low" onclick="selectRoute(0)">
+                    <div class="route-title">
+                        <span>Rustlands Wasteland</span>
+                        <span class="route-risk risk-low">Low Risk</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                        Exp. Fuel usage: 40% | Objective coordinate: X=150
+                    </div>
+                </div>
+                <div class="route-card" id="route-med" onclick="selectRoute(1)">
+                    <div class="route-title">
+                        <span>Contested Gulch</span>
+                        <span class="route-risk risk-medium">Med Risk</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                        Exp. Fuel usage: 75% | Objective coordinate: X=200
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="panel-title">📋 Mission checklist</div>
+                <div id="checklist-container">
+                    <!-- Dynamic Checklist Items -->
+                </div>
+                <button class="btn btn-mission" id="mission-action-btn" onclick="triggerNextMissionStep()" style="margin-top: 15px;">Accept Mission</button>
+            </div>
+        </div>
+        
+        <!-- Column 2: Schematic View -->
         <div class="schematic-pane">
-            <div class="schematic-title">Interactive Chassis Wireframe</div>
+            <div class="panel-title" style="border: none; position: absolute; top: 15px; left: 20px;">🛡️ Chassis wireframe</div>
             <div class="wireframe-container">
-                <!-- Outer chassis overlay zones -->
                 <div class="zone-overlay state-healthy" id="zone-front" onclick="selectZone(0)">Front Armor</div>
                 <div class="zone-overlay state-healthy" id="zone-left" onclick="selectZone(1)">Left Panel</div>
                 <div class="zone-overlay state-healthy" id="zone-right" onclick="selectZone(2)">Right Panel</div>
@@ -366,12 +521,11 @@
             </div>
         </div>
 
-        <!-- Right inspector/controls panel -->
-        <div class="controls-pane">
-            
+        <!-- Column 3: Inspector & Diagnostics -->
+        <div class="col">
             <!-- Details Inspector Card -->
             <div class="card">
-                <div class="card-title">Zone Inspector</div>
+                <div class="panel-title">🔎 Zone Inspector</div>
                 <div id="inspector-empty" style="color: var(--text-secondary); text-align: center; padding: 20px 0;">
                     Select a zone on the chassis wireframe to inspect and repair
                 </div>
@@ -396,32 +550,54 @@
                 </div>
             </div>
 
+            <!-- Weaponry inventory card -->
+            <div class="card">
+                <div class="panel-title">⚔️ Mounted Weaponry</div>
+                <div class="weapon-mount-list" id="weapon-mount-list">
+                    <!-- Dynamic weapon slots -->
+                </div>
+            </div>
+
             <!-- Diagnostics Card -->
             <div class="card">
-                <div class="card-title">System Diagnostics</div>
+                <div class="panel-title">🖥️ System Diagnostics</div>
                 <div class="diagnostic-box">
                     <span>STATUS: AUTHORITATIVE LINKED</span><br>
                     <span>PRD ASSER-004 CHECK: </span><span class="diag-ok">PASSED</span><br>
                     <span>INTERNAL MECHANICAL FAULTS: </span><span class="diag-ok" id="fault-count">0</span><br>
                     <span style="color: var(--text-secondary); font-size: 11px;">(No internal transmissions, engines or penetrate grids simulated)</span>
                 </div>
-                <button class="btn btn-secondary" onclick="repairAllZones()">REPAIR ALL VEHICLE ZONES</button>
                 
-                <div class="detail-row" style="margin-top: 15px;">
-                    <span class="detail-label">Mock Damage Simulator:</span>
-                </div>
                 <div class="mock-controls">
-                    <button class="mock-btn" onclick="applyMockDamage(0.3)">MOCK LIGHT DMG</button>
+                    <button class="mock-btn" onclick="applyMockDamage(0.35)">MOCK LIGHT DMG</button>
                     <button class="mock-btn" onclick="applyMockDamage(0.7)" style="background: rgba(255,59,48,0.2)">MOCK CRIT DMG</button>
                 </div>
             </div>
-
         </div>
 
     </div>
 </div>
 
 <script>
+    // Mission State Machine definitions
+    const MissionSteps = [
+        { id: "accept", text: "Accept Package Delivery Mission", requiredState: 0 },
+        { id: "load", text: "Load Cargo Onto Chassis", requiredState: 1 },
+        { id: "depart", text: "Depart Bartertown Boundary", requiredState: 2 },
+        { id: "objective", text: "Reach Objective Location (X >= 150)", requiredState: 3 },
+        { id: "return", text: "Return to Bartertown Base", requiredState: 4 },
+        { id: "repair", text: "Repair Chassis Damage Zones", requiredState: 5 },
+        { id: "refuel", text: "Refuel Hydrogen fuel cells", requiredState: 6 },
+        { id: "rearm", text: "Rearm Ammunition Magazines", requiredState: 7 },
+        { id: "install_part", text: "Install Salvaged Module", requiredState: 8 }
+    ];
+
+    let currentMissionState = 0; // 0 = None, 1 = Accepted, 2 = CargoLoaded, 3 = Departed, 4 = ObjectiveReached, 5 = Returned, 6 = Repaired, 7 = Refueled, 8 = Rearmed, 9 = PartInstalled
+    let fuelPercent = 100;
+    let scrapInventory = 200;
+    let selectedZoneIdx = null;
+    let selectedRouteIdx = 0; // 0 = Low Risk, 1 = Med Risk
+
     // In-memory zones matching VehicleFixture
     const zones = [
         { id: 0, name: "Front Armor", health: 1.0, baseCost: 50, domId: "zone-front" },
@@ -431,12 +607,147 @@
         { id: 4, name: "Running Gear", health: 1.0, baseCost: 40, domId: "zone-wheels" }
     ];
 
-    let scrapInventory = 200;
-    let selectedZoneIdx = null;
+    // Weapons slots
+    const weapons = [
+        { id: 0, name: "Front Left Rifle", ammo: 50, equipped: true },
+        { id: 1, name: "Front Right Rifle", ammo: 50, equipped: true },
+        { id: 2, name: "Central Roof Mount", ammo: 0, equipped: false },
+        { id: 3, name: "Left Side Gun", ammo: 0, equipped: false },
+        { id: 4, name: "Right Side Gun", ammo: 0, equipped: false },
+        { id: 5, name: "Rear Defense Gun", ammo: 0, equipped: false }
+    ];
+
+    function selectRoute(idx) {
+        if (currentMissionState === 0) {
+            selectedRouteIdx = idx;
+            document.getElementById("route-low").className = idx === 0 ? "route-card selected" : "route-card";
+            document.getElementById("route-med").className = idx === 1 ? "route-card selected" : "route-card";
+        }
+    }
+
+    function triggerNextMissionStep() {
+        const actionBtn = document.getElementById("mission-action-btn");
+        
+        switch (currentMissionState) {
+            case 0: // Accept
+                currentMissionState = 1;
+                break;
+            case 1: // Load
+                currentMissionState = 2;
+                break;
+            case 2: // Depart
+                currentMissionState = 3;
+                // Fuel starts depleting
+                startFuelDepletion();
+                break;
+            case 3: // Reach objective
+                currentMissionState = 4;
+                fuelPercent = selectedRouteIdx === 0 ? 60 : 25;
+                break;
+            case 4: // Return
+                currentMissionState = 5;
+                fuelPercent = selectedRouteIdx === 0 ? 20 : 5;
+                break;
+            case 5: // Repair check
+                // Verify all zones are repaired
+                const isDamaged = zones.some(z => z.health < 1.0);
+                if (isDamaged) {
+                    alert("Please repair all chassis zones in the Refit terminal before advancing!");
+                    return;
+                }
+                currentMissionState = 6;
+                break;
+            case 6: // Refuel
+                currentMissionState = 7;
+                fuelPercent = 100;
+                break;
+            case 7: // Rearm
+                currentMissionState = 8;
+                weapons.forEach(w => {
+                    if (w.equipped) w.ammo = 50;
+                });
+                break;
+            case 8: // Install salvaged part
+                currentMissionState = 9;
+                weapons[2].equipped = true;
+                weapons[2].ammo = 50;
+                break;
+            case 9:
+                // Restart loop
+                currentMissionState = 0;
+                weapons[2].equipped = false;
+                weapons[2].ammo = 0;
+                fuelPercent = 100;
+                break;
+        }
+        updateUI();
+    }
+
+    let fuelInterval = null;
+    function startFuelDepletion() {
+        if (fuelInterval) clearInterval(fuelInterval);
+        fuelInterval = setInterval(() => {
+            if (currentMissionState === 3) { // Departed
+                fuelPercent = Math.max(20, fuelPercent - 2);
+                updateUI();
+            } else {
+                clearInterval(fuelInterval);
+            }
+        }, 1000);
+    }
 
     function updateUI() {
-        // Update Scrap display
+        // Resources
         document.getElementById("scrap-value").innerText = scrapInventory;
+        document.getElementById("fuel-value").innerText = fuelPercent;
+
+        // Render checklist
+        const checklist = document.getElementById("checklist-container");
+        checklist.innerHTML = "";
+        
+        MissionSteps.forEach((step, idx) => {
+            const item = document.createElement("div");
+            item.className = "checklist-item";
+            
+            if (currentMissionState > idx) {
+                item.classList.add("completed");
+            } else if (currentMissionState === idx) {
+                item.classList.add("active");
+            }
+
+            const checkbox = document.createElement("div");
+            checkbox.className = "checklist-checkbox";
+            checkbox.innerText = currentMissionState > idx ? "✓" : "";
+            
+            const label = document.createElement("span");
+            label.innerText = step.text;
+
+            item.appendChild(checkbox);
+            item.appendChild(label);
+            checklist.appendChild(item);
+        });
+
+        // Set action button label
+        const actionBtn = document.getElementById("mission-action-btn");
+        actionBtn.className = "btn btn-mission";
+        
+        if (currentMissionState === 0) actionBtn.innerText = "Accept Mission";
+        else if (currentMissionState === 1) actionBtn.innerText = "Load Cargo";
+        else if (currentMissionState === 2) actionBtn.innerText = "Depart Base";
+        else if (currentMissionState === 3) actionBtn.innerText = "Simulate Reaching Objective";
+        else if (currentMissionState === 4) actionBtn.innerText = "Simulate Return To Base";
+        else if (currentMissionState === 5) {
+            actionBtn.innerText = "Advance to Refuel Phase";
+            const isDamaged = zones.some(z => z.health < 1.0);
+            if (isDamaged) {
+                actionBtn.className = "btn btn-secondary";
+                actionBtn.innerText = "Repair Vehicle First";
+            }
+        }
+        else if (currentMissionState === 6) actionBtn.innerText = "Refuel fuel cell";
+        else if (currentMissionState === 7) actionBtn.innerText = "Rearm Ammo";
+        else if (currentMissionState === 8) actionBtn.innerText = "Install Salvaged Module (Central Roof)";
+        else if (currentMissionState === 9) actionBtn.innerText = "Reset vertical slice loop";
 
         // Update zone DOM overlays
         zones.forEach(zone => {
@@ -451,13 +762,12 @@
                 el.classList.add("state-critical");
             }
 
-            // Keep selection highlight
             if (selectedZoneIdx !== null && zones[selectedZoneIdx].id === zone.id) {
                 el.classList.add("selected");
             }
         });
 
-        // Update Inspector
+        // Update inspector panel
         if (selectedZoneIdx !== null) {
             document.getElementById("inspector-empty").style.display = "none";
             document.getElementById("inspector-content").style.display = "block";
@@ -506,6 +816,41 @@
             document.getElementById("inspector-empty").style.display = "block";
             document.getElementById("inspector-content").style.display = "none";
         }
+
+        // Render weaponry inventory
+        const weaponList = document.getElementById("weapon-mount-list");
+        weaponList.innerHTML = "";
+        weapons.forEach(w => {
+            const item = document.createElement("div");
+            item.className = "weapon-mount-item";
+            
+            const nameSpan = document.createElement("span");
+            nameSpan.innerText = w.name;
+            
+            const badgeSpan = document.createElement("span");
+            badgeSpan.className = "mount-tag";
+            badgeSpan.innerText = `Ammo: ${w.ammo}/50`;
+
+            const statusSpan = document.createElement("span");
+            if (w.equipped) {
+                statusSpan.className = "equipped-status";
+                statusSpan.innerText = "EQUIPPED";
+            } else {
+                statusSpan.className = "unequipped-status";
+                statusSpan.innerText = "EMPTY";
+            }
+
+            const leftDiv = document.createElement("div");
+            leftDiv.style.display = "flex";
+            leftDiv.style.alignItems = "center";
+            leftDiv.style.gap = "8px";
+            leftDiv.appendChild(nameSpan);
+            leftDiv.appendChild(badgeSpan);
+
+            item.appendChild(leftDiv);
+            item.appendChild(statusSpan);
+            weaponList.appendChild(item);
+        });
     }
 
     function selectZone(idx) {
@@ -524,28 +869,16 @@
         }
     }
 
-    function repairAllZones() {
-        zones.forEach(zone => {
-            const cost = Math.round(zone.baseCost * (1.0 - zone.health));
-            if (scrapInventory >= cost) {
-                scrapInventory -= cost;
-                zone.health = 1.0;
-            }
-        });
-        updateUI();
-    }
-
     function applyMockDamage(amt) {
-        // Distribute damage randomly across zones
         zones.forEach(zone => {
-            if (Math.random() > 0.3) {
+            if (Math.random() > 0.25) {
                 zone.health = Math.max(0.0, zone.health - (Math.random() * amt));
             }
         });
         updateUI();
     }
 
-    // Initial load
+    // Initial Load
     updateUI();
 </script>
 </body>

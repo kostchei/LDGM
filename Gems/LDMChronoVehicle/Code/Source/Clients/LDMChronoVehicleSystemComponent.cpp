@@ -394,6 +394,7 @@ namespace LDMChronoVehicle
                             inputs.m_fireTriggers[i] = inputPacket.m_fireTriggers[i] != 0;
                         }
                         vehicle.m_fixture->SetLiveInputs(inputs);
+                        vehicle.m_fixture->ProcessMissionCommand(inputPacket.m_missionCommand);
                     }
                 }
             }
@@ -511,7 +512,9 @@ namespace LDMChronoVehicle
                         snapshotAmmo,
                         snapshotEquipped,
                         vehicle.m_fixture->GetConditionState(),
-                        vehicle.m_fixture->GetCondition());
+                        vehicle.m_fixture->GetCondition(),
+                        static_cast<AZ::u32>(vehicle.m_fixture->GetMissionState()),
+                        vehicle.m_fixture->GetFuelRatio());
                 }
             }
         }
@@ -527,8 +530,26 @@ namespace LDMChronoVehicle
         bool gearDownPressed = false;
         bool engineStartPressed = false;
         bool targetFireTriggers[6] = { false, false, false, false, false, false };
+        AZ::u32 targetMissionCommand = 0;
 
 #if defined(AZ_PLATFORM_WINDOWS)
+        // 1. Keyboard Mission Command Mapping
+        if (GetAsyncKeyState('6') & 0x8000)
+        {
+            targetMissionCommand = 1;
+        }
+        else if (GetAsyncKeyState('7') & 0x8000)
+        {
+            targetMissionCommand = 2;
+        }
+        else if (GetAsyncKeyState('8') & 0x8000)
+        {
+            targetMissionCommand = 3;
+        }
+        else if (GetAsyncKeyState('9') & 0x8000)
+        {
+            targetMissionCommand = 9;
+        }
         // 1. Keyboard & Mouse Firing
         if (GetAsyncKeyState('W') & 0x8000 || GetAsyncKeyState(VK_UP) & 0x8000)
         {
@@ -706,7 +727,7 @@ namespace LDMChronoVehicle
             m_inputPublisher->Publish(lastSimTime, ChronoState::PlayerVehicleId,
                 m_clientSteering, m_clientThrottle, m_clientBrake, m_clientHandbrake,
                 m_clientDriveMode, m_clientEngineStarted,
-                targetFireTriggers);
+                targetFireTriggers, targetMissionCommand);
         }
 
         if (!snapshotsReceived)
@@ -835,6 +856,12 @@ namespace LDMChronoVehicle
                     "T1 visual trace: t=%.3f marker=%s\n",
                     packet.m_simulationTimeSeconds,
                     smokeFireStr);
+
+                AZ_Printf("LDMChronoVehicle",
+                    "T3 mission trace: t=%.3f state=%u fuel=%.3f\n",
+                    packet.m_simulationTimeSeconds,
+                    packet.m_missionState,
+                    static_cast<double>(packet.m_fuelRatio));
             }
         }
     }

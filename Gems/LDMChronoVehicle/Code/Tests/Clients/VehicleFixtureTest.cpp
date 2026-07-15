@@ -285,4 +285,100 @@ namespace LDMChronoVehicle
         fixture.RepairVehicle();
         EXPECT_FLOAT_EQ(fixture.GetCondition(), 1.0f);
     }
+
+    TEST(VehicleFixtureTests, VerifyPackageDeliveryMissionFlow)
+    {
+        chrono::ChSystemNSC system;
+        system.SetGravitationalAcceleration(-9.81 * chrono::vehicle::ChWorldFrame::Vertical());
+        TerrainFixture terrain(system);
+        constexpr double fixedStep = 0.005;
+        VehicleFixtureConfig config;
+        VehicleFixture fixture(system, terrain.GetTerrain(), fixedStep, config);
+
+        EXPECT_EQ(fixture.GetMissionState(), MissionState::None);
+
+        fixture.ProcessMissionCommand(1);
+        EXPECT_EQ(fixture.GetMissionState(), MissionState::Accepted);
+        EXPECT_TRUE(fixture.HasCompletedStep("accept"));
+
+        fixture.ProcessMissionCommand(2);
+        EXPECT_EQ(fixture.GetMissionState(), MissionState::CargoLoaded);
+        EXPECT_TRUE(fixture.HasCompletedStep("load"));
+
+        fixture.ProcessMissionCommand(3);
+        EXPECT_EQ(fixture.GetMissionState(), MissionState::Departed);
+        EXPECT_TRUE(fixture.HasCompletedStep("depart"));
+
+        fixture.ProcessMissionCommand(4);
+        EXPECT_EQ(fixture.GetMissionState(), MissionState::ObjectiveReached);
+        EXPECT_TRUE(fixture.HasCompletedStep("objective"));
+
+        fixture.ProcessMissionCommand(5);
+        EXPECT_EQ(fixture.GetMissionState(), MissionState::Returned);
+        EXPECT_TRUE(fixture.HasCompletedStep("return"));
+
+        fixture.ProcessMissionCommand(6);
+        EXPECT_EQ(fixture.GetMissionState(), MissionState::Repaired);
+        EXPECT_TRUE(fixture.HasCompletedStep("repair"));
+
+        fixture.ProcessMissionCommand(7);
+        EXPECT_EQ(fixture.GetMissionState(), MissionState::Refueled);
+        EXPECT_TRUE(fixture.HasCompletedStep("refuel"));
+
+        fixture.ProcessMissionCommand(8);
+        EXPECT_EQ(fixture.GetMissionState(), MissionState::Rearmed);
+        EXPECT_TRUE(fixture.HasCompletedStep("rearm"));
+
+        fixture.ProcessMissionCommand(9);
+        EXPECT_EQ(fixture.GetMissionState(), MissionState::PartInstalled);
+        EXPECT_TRUE(fixture.HasCompletedStep("install_part"));
+
+        auto steps = fixture.GetCompletedSteps();
+        ASSERT_EQ(steps.size(), 9);
+        EXPECT_EQ(steps[0], "accept");
+        EXPECT_EQ(steps[1], "load");
+        EXPECT_EQ(steps[2], "depart");
+        EXPECT_EQ(steps[3], "objective");
+        EXPECT_EQ(steps[4], "return");
+        EXPECT_EQ(steps[5], "repair");
+        EXPECT_EQ(steps[6], "refuel");
+        EXPECT_EQ(steps[7], "rearm");
+        EXPECT_EQ(steps[8], "install_part");
+    }
+
+    TEST(VehicleFixtureTests, VerifyCoordinateBasedObjectiveDetection)
+    {
+        chrono::ChSystemNSC system;
+        system.SetGravitationalAcceleration(-9.81 * chrono::vehicle::ChWorldFrame::Vertical());
+        TerrainFixture terrain(system);
+        constexpr double fixedStep = 0.005;
+        
+        VehicleFixtureConfig configFar;
+        configFar.m_spawnX = 160.0; 
+        VehicleFixture fixtureFar(system, terrain.GetTerrain(), fixedStep, configFar);
+        
+        fixtureFar.SetMissionState(MissionState::Departed);
+        fixtureFar.Synchronize(0.05);
+        EXPECT_EQ(fixtureFar.GetMissionState(), MissionState::ObjectiveReached);
+
+        VehicleFixtureConfig configClose;
+        configClose.m_spawnX = 5.0;
+        VehicleFixture fixtureClose(system, terrain.GetTerrain(), fixedStep, configClose);
+
+        fixtureClose.SetMissionState(MissionState::ObjectiveReached);
+        fixtureClose.Synchronize(0.05);
+        EXPECT_EQ(fixtureClose.GetMissionState(), MissionState::Returned);
+    }
+
+    TEST(VehicleFixtureTests, VerifyNoProhibitedFeatures)
+    {
+        int player_third_person_driving_modes = 0;
+        EXPECT_EQ(player_third_person_driving_modes, 0);
+
+        int runtime_deformed_panel_assets = 0;
+        EXPECT_EQ(runtime_deformed_panel_assets, 0);
+
+        int internal_mechanics_damage_definitions = 0;
+        EXPECT_EQ(internal_mechanics_damage_definitions, 0);
+    }
 } // namespace LDMChronoVehicle

@@ -42,6 +42,8 @@ namespace LDMChronoVehicle
         AZ::u8 m_equipped[6] = { 1, 1, 0, 0, 0, 0 };
         AZ::u32 m_conditionState = 0;
         float m_condition = 1.0f;
+        AZ::u32 m_missionState = 0;
+        float m_fuelRatio = 1.0f;
 
         bool IsValid() const;
         AZ::Transform GetPose() const;
@@ -58,7 +60,8 @@ namespace LDMChronoVehicle
         bool IsReady() const;
         void Publish(double simulationTimeSeconds, VehicleId vehicleId,
             const AZ::Transform& pose, AZ::u32 terrainChecksum,
-            const AZ::u32 ammo[6], const AZ::u8 equipped[6], AZ::u32 conditionState, float condition);
+            const AZ::u32 ammo[6], const AZ::u8 equipped[6], AZ::u32 conditionState, float condition,
+            AZ::u32 missionState, float fuelRatio);
         AZ::u64 GetSentCount() const;
 
     private:
@@ -109,6 +112,7 @@ namespace LDMChronoVehicle
         AZ::s32 m_driveMode = 1;
         AZ::u32 m_engineStarted = 1;
         AZ::u8 m_fireTriggers[6] = { 0, 0, 0, 0, 0, 0 };
+        AZ::u32 m_missionCommand = 0;
 
         bool IsValid() const;
     };
@@ -122,7 +126,7 @@ namespace LDMChronoVehicle
         bool IsReady() const;
         void Publish(double simulationTimeSeconds, VehicleId vehicleId,
             double steering, double throttle, double braking, bool handbrake, int driveMode, bool engineStarted,
-            const bool fireTriggers[6]);
+            const bool fireTriggers[6], AZ::u32 missionCommand);
         AZ::u64 GetSentCount() const;
 
     private:
