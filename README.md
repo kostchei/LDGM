@@ -12,6 +12,7 @@ Recovered planning repository for a first-person vehicular combat game built wit
 - `tools/validate_test_goals.py` — repeatable package validator.
 - `tools/recovered_original_package_generator.py` — generator recovered from the public ChatGPT share and adapted only to use this repository path.
 - `RECOVERY_NOTES.md` — provenance and limitations of the reconstruction.
+- `docs/design/stats_progression_and_vehicle_feature_set.md` — discussion baseline for the original 3d6 stats, Fame, perception, vehicle condition, equipment grades, slots, and progression feature set.
 
 ## Validate
 
