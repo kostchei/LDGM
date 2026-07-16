@@ -101,8 +101,65 @@ namespace LDMChronoVehicle
             { "CabinFloor", CubeModelAssetPath,
               AZ::Vector3(0.275f, 0.0f, -0.05f), AZ::Vector3(1.25f, 1.9f, 0.1f),
               NoRotation, NoRotation },
-            { "CabinDash", CubeModelAssetPath,
-              AZ::Vector3(0.75f, 0.0f, 0.45f), AZ::Vector3(0.3f, 1.9f, 0.6f),
+            // Front of the cabin: a low firewall with the pedal box in front
+            // of it, a thin cowl rim under the windshield opening, and an
+            // instrument binnacle behind the steering wheel. No full-height
+            // dash slab: the space between cowl and firewall stays open so
+            // the fittings read individually.
+            { "CabinFirewall", CubeModelAssetPath,
+              AZ::Vector3(0.85f, 0.0f, 0.3f), AZ::Vector3(0.1f, 1.9f, 0.66f),
+              NoRotation, NoRotation },
+            { "CabinCowl", CubeModelAssetPath,
+              AZ::Vector3(0.82f, 0.0f, 0.7f), AZ::Vector3(0.16f, 1.9f, 0.14f),
+              NoRotation, NoRotation },
+            { "DashBinnacle", CubeModelAssetPath,
+              AZ::Vector3(0.82f, -0.4f, 0.85f), AZ::Vector3(0.16f, 0.42f, 0.22f),
+              NoRotation, NoRotation },
+            // Gauge faces: flat cylinder discs proud of the binnacle, facing
+            // the driver. Speedometer center, fuel left of it, oil pressure
+            // right (right-hand drive: driver sits at y = -0.4; +Y is left).
+            { "GaugeSpeedometer", CylinderModelAssetPath,
+              AZ::Vector3(0.71f, -0.4f, 0.9f), AZ::Vector3(0.14f, 0.14f, 0.03f),
+              90.0f, NoRotation },
+            { "GaugeFuel", CylinderModelAssetPath,
+              AZ::Vector3(0.71f, -0.27f, 0.87f), AZ::Vector3(0.09f, 0.09f, 0.03f),
+              90.0f, NoRotation },
+            { "GaugeOilPressure", CylinderModelAssetPath,
+              AZ::Vector3(0.71f, -0.53f, 0.87f), AZ::Vector3(0.09f, 0.09f, 0.03f),
+              90.0f, NoRotation },
+            // Ammunition counter panel on the center dash, between driver and
+            // passenger side, matching the HUD readout's physical home.
+            { "AmmoPanel", CubeModelAssetPath,
+              AZ::Vector3(0.78f, -0.05f, 0.85f), AZ::Vector3(0.06f, 0.14f, 0.09f),
+              NoRotation, NoRotation },
+            { "SteeringColumn", CylinderModelAssetPath,
+              AZ::Vector3(0.78f, -0.4f, 0.82f), AZ::Vector3(0.05f, 0.05f, 0.2f),
+              75.0f, NoRotation },
+            // Floor controls: gear stick on the center tunnel (driver's left)
+            // with a knob, clutch-brake-throttle pedals left to right ahead
+            // of the driver's feet against the firewall.
+            { "GearStick", CylinderModelAssetPath,
+              AZ::Vector3(0.45f, -0.12f, 0.3f), AZ::Vector3(0.03f, 0.03f, 0.3f),
+              -15.0f, NoRotation },
+            { "GearKnob", CubeModelAssetPath,
+              AZ::Vector3(0.41f, -0.12f, 0.46f), AZ::Vector3(0.05f, 0.05f, 0.05f),
+              NoRotation, NoRotation },
+            { "PedalClutch", CubeModelAssetPath,
+              AZ::Vector3(0.78f, -0.28f, 0.15f), AZ::Vector3(0.03f, 0.09f, 0.14f),
+              30.0f, NoRotation },
+            { "PedalBrake", CubeModelAssetPath,
+              AZ::Vector3(0.78f, -0.4f, 0.15f), AZ::Vector3(0.03f, 0.09f, 0.14f),
+              30.0f, NoRotation },
+            { "PedalThrottle", CubeModelAssetPath,
+              AZ::Vector3(0.78f, -0.52f, 0.15f), AZ::Vector3(0.03f, 0.09f, 0.14f),
+              30.0f, NoRotation },
+            // Mirrors: interior rear-view at the top of the windshield
+            // opening, exterior mirror head outside the driver (right) door.
+            { "RearviewMirror", CubeModelAssetPath,
+              AZ::Vector3(0.75f, 0.0f, 1.31f), AZ::Vector3(0.03f, 0.28f, 0.09f),
+              NoRotation, NoRotation },
+            { "SideMirrorRight", CubeModelAssetPath,
+              AZ::Vector3(0.9f, -1.02f, 1.15f), AZ::Vector3(0.03f, 0.14f, 0.2f),
               NoRotation, NoRotation },
             { "CabinRoof", CubeModelAssetPath,
               AZ::Vector3(0.275f, 0.0f, 1.55f), AZ::Vector3(1.25f, 1.9f, 0.1f),
@@ -113,11 +170,20 @@ namespace LDMChronoVehicle
             { "CabinRearHeader", CubeModelAssetPath,
               AZ::Vector3(-0.3f, 0.0f, 1.5f), AZ::Vector3(0.1f, 1.9f, 0.2f),
               NoRotation, NoRotation },
+            // Corner pillars: A-pillars at the windshield corners, B-pillars
+            // at the rear corners. The side openings between them are the
+            // door windows the driver sees when head-looking.
             { "CabinAPillarLeft", CubeModelAssetPath,
               AZ::Vector3(0.85f, 0.9f, 1.1f), AZ::Vector3(0.12f, 0.12f, 0.9f),
               NoRotation, NoRotation },
             { "CabinAPillarRight", CubeModelAssetPath,
               AZ::Vector3(0.85f, -0.9f, 1.1f), AZ::Vector3(0.12f, 0.12f, 0.9f),
+              NoRotation, NoRotation },
+            { "CabinBPillarLeft", CubeModelAssetPath,
+              AZ::Vector3(-0.3f, 0.9f, 1.15f), AZ::Vector3(0.12f, 0.12f, 0.8f),
+              NoRotation, NoRotation },
+            { "CabinBPillarRight", CubeModelAssetPath,
+              AZ::Vector3(-0.3f, -0.9f, 1.15f), AZ::Vector3(0.12f, 0.12f, 0.8f),
               NoRotation, NoRotation },
             { "CabinWindshieldHeader", CubeModelAssetPath,
               AZ::Vector3(0.85f, 0.0f, 1.5f), AZ::Vector3(0.12f, 1.9f, 0.15f),
@@ -137,7 +203,7 @@ namespace LDMChronoVehicle
             // Steering wheel: torus lies in the model XY plane; pitch it up
             // toward the driver like a truck steering column.
             { "SteeringWheel", TorusModelAssetPath,
-              AZ::Vector3(0.72f, 0.4f, 0.8f), AZ::Vector3(0.38f, 0.38f, 0.1f),
+              AZ::Vector3(0.72f, 0.4f, 0.8f), AZ::Vector3(0.36f, 0.36f, 0.06f),
               75.0f, NoRotation },
             // Cargo tray: open box behind the cabin.
             { "CargoFloor", CubeModelAssetPath,

@@ -57,7 +57,8 @@ namespace LDMChronoVehicle
     AZ::Transform CockpitCameraComponent::GetCockpitOffset()
     {
         // Driver eye point from the shared chassis contract: forward of the
-        // chassis reference origin, offset to the left seat, above the floor.
+        // chassis reference origin, offset to the right-hand-drive seat,
+        // above the floor.
         // O3DE cameras look along local +Y while the Chrono vehicle's forward
         // axis is +X. Rotate the camera -90 degrees about Z to align them.
         return AZ::Transform::CreateFromQuaternionAndTranslation(

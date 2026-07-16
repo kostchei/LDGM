@@ -14,8 +14,9 @@ namespace LDMChronoVehicle
     // (~0.59 m above ground at rest ride height).
     namespace ChassisPresentationConfig
     {
-        // Driver eye point: left seat, above the cabin floor, behind the dash.
-        inline const AZ::Vector3 DriverEyeOffset{ 0.4f, 0.4f, 1.1f };
+        // Driver eye point: right-hand-drive seat (+Y is left, so the driver
+        // sits at negative Y), above the cabin floor, behind the dash.
+        inline const AZ::Vector3 DriverEyeOffset{ 0.4f, -0.4f, 1.1f };
 
         // Camera near-clip distance in meters. Cockpit geometry (dash,
         // windshield pillars) sits closer than O3DE's default near plane.
