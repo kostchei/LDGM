@@ -1,4 +1,4 @@
-﻿
+
 set(FILES
     Source/LDMChronoVehicleModuleInterface.cpp
     Source/LDMChronoVehicleModuleInterface.h
@@ -17,8 +17,16 @@ set(FILES
     Source/Simulation/CoordinateConversion.h
     Source/Simulation/FixedStepClock.cpp
     Source/Simulation/FixedStepClock.h
+    Source/Simulation/NpcVehicleAI.cpp
+    Source/Simulation/NpcVehicleAI.h
+    Source/Simulation/RaceManager.cpp
+    Source/Simulation/RaceManager.h
     Source/Simulation/TerrainFixtureConfig.cpp
     Source/Simulation/TerrainFixtureConfig.h
+    Source/Simulation/VehicleConditionSystem.cpp
+    Source/Simulation/VehicleConditionSystem.h
     Source/Simulation/VehicleFixture.cpp
     Source/Simulation/VehicleFixture.h
+    Source/Simulation/WeaponSystem.cpp
+    Source/Simulation/WeaponSystem.h
 )

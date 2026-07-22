@@ -1513,6 +1513,19 @@ namespace LDMChronoVehicle
             ImVec2(center.x, center.y + gap), ImVec2(center.x, center.y + gap + arm),
             reticleColor, 2.0f);
 
+        // 3D Cockpit Wayfinder Indicator (Directional Arrow to Next Gate)
+        const ImU32 wayfinderColor = IM_COL32(80, 220, 255, 230);
+        constexpr float wayfinderRadius = 45.0f;
+        // Direction arrow vector towards next checkpoint node
+        const ImVec2 arrowHead(
+            center.x + std::sin(m_hudWayfinderAngleRad) * wayfinderRadius,
+            center.y - std::cos(m_hudWayfinderAngleRad) * wayfinderRadius);
+        drawList->AddCircleFilled(arrowHead, 5.0f, wayfinderColor);
+        drawList->AddLine(center, arrowHead, wayfinderColor, 2.0f);
+        char distBuf[32];
+        azsnprintf(distBuf, sizeof(distBuf), "GATE: %.0fm", static_cast<double>(m_hudDistanceToNextGateMeters));
+        drawList->AddText(ImVec2(arrowHead.x - 20.0f, arrowHead.y + 8.0f), wayfinderColor, distBuf);
+
         // Weapon and vehicle status panel, bottom left.
         static const char* SlotNames[6] = {
             "FRONT L", "FRONT R", "CENTRAL", "LEFT", "RIGHT", "REAR"
@@ -1547,8 +1560,80 @@ namespace LDMChronoVehicle
                 static_cast<double>(m_hudCondition * 100.0f));
             ImGui::Text("FUEL       %.0f%%",
                 static_cast<double>(m_hudFuelRatio * 100.0f));
+            ImGui::Text("SPEED      %.0f km/h",
+                static_cast<double>(m_hudSpeedMps * 3.6f));
         }
         ImGui::End();
+
+        // Race Standings and Lap Counter Banner, top right.
+        ImGui::SetNextWindowPos(ImVec2(displaySize.x - 220.0f, 20.0f));
+        ImGui::SetNextWindowBgAlpha(0.50f);
+        if (ImGui::Begin("RaceStandingsHud", nullptr,
+                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f), "RACE POSITION");
+            ImGui::SetWindowFontScale(1.4f);
+            ImGui::Text("POS: %u / 4", m_hudRaceRank > 0 ? m_hudRaceRank : 1);
+            ImGui::SetWindowFontScale(1.0f);
+            ImGui::Text("LAP: %u / 3", m_hudRaceLap > 0 ? m_hudRaceLap : 1);
+        }
+        ImGui::End();
+
+        // Big Center-Screen Banner for Race Events (Countdown, Victory, Elimination)
+        if (m_hudRaceState == 0) // Countdown
+        {
+            ImGui::SetNextWindowPos(ImVec2(center.x - 120.0f, center.y - 100.0f));
+            ImGui::SetNextWindowBgAlpha(0.6f);
+            if (ImGui::Begin("RaceCountdown", nullptr,
+                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+                    ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
+            {
+                ImGui::SetWindowFontScale(2.0f);
+                if (m_hudCountdownTimer > 0.5f)
+                {
+                    ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "  GET READY!");
+                    ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.2f, 1.0f), "      %d", static_cast<int>(m_hudCountdownTimer) + 1);
+                }
+                else
+                {
+                    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.2f, 1.0f), "     GO!!!");
+                }
+                ImGui::SetWindowFontScale(1.0f);
+            }
+            ImGui::End();
+        }
+        else if (m_hudRaceState == 2) // Victory / Race Finished
+        {
+            ImGui::SetNextWindowPos(ImVec2(center.x - 160.0f, center.y - 80.0f));
+            ImGui::SetNextWindowBgAlpha(0.75f);
+            if (ImGui::Begin("RaceVictory", nullptr,
+                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+                    ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
+            {
+                ImGui::SetWindowFontScale(1.8f);
+                ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.3f, 1.0f), "FINISH LINE!");
+                ImGui::TextColored(ImVec4(1.0f, 0.9f, 0.2f, 1.0f), "FINAL RANK: #%u", m_hudRaceRank);
+                ImGui::SetWindowFontScale(1.0f);
+            }
+            ImGui::End();
+        }
+        else if (m_hudRaceState == 3) // Elimination
+        {
+            ImGui::SetNextWindowPos(ImVec2(center.x - 160.0f, center.y - 80.0f));
+            ImGui::SetNextWindowBgAlpha(0.85f);
+            if (ImGui::Begin("RaceEliminated", nullptr,
+                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+                    ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
+            {
+                ImGui::SetWindowFontScale(1.8f);
+                ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "VEHICLE DESTROYED!");
+                ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.8f, 1.0f), "ELIMINATED FROM RACE");
+                ImGui::SetWindowFontScale(1.0f);
+            }
+            ImGui::End();
+        }
     }
 #endif
 

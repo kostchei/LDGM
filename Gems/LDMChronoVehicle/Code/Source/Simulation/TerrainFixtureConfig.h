@@ -21,14 +21,14 @@ namespace LDMChronoVehicle
     // from these values; bump Version whenever any value changes.
     namespace TerrainFixtureConfig
     {
-        inline constexpr AZ::u32 Version = 2;
-        inline constexpr double LengthMeters = 200.0;
-        inline constexpr double WidthMeters = 200.0;
+        inline constexpr AZ::u32 Version = 3;
+        inline constexpr double LengthMeters = 2500.0;
+        inline constexpr double WidthMeters = 2500.0;
         inline constexpr double SurfaceZMeters = 0.0;
         inline constexpr double ThicknessMeters = 1.0;
 
         inline constexpr int NumLanes = 5;
-        inline constexpr double LaneWidthMeters = 40.0;
+        inline constexpr double LaneWidthMeters = 6.0;
 
         inline constexpr double HardRoadFriction = 0.9;
         inline constexpr double BrokenRoadFriction = 0.7;
@@ -43,7 +43,7 @@ namespace LDMChronoVehicle
         const char* GetLaneName(double y);
 
         // The O3DE presentation uses the stock 512 m ground-plane model,
-        // uniformly scaled to the same 200 m extent as the Chrono patch.
+        // uniformly scaled to the same 2500 m extent as the Chrono patch.
         inline constexpr double O3deGroundModelSizeMeters = 512.0;
         inline constexpr double O3deGroundUniformScale =
             LengthMeters / O3deGroundModelSizeMeters;
