@@ -102,6 +102,15 @@ namespace LDMChronoVehicle
         float m_maxClientProxyPositionErrorMeters = 0.0f;
         float m_maxClientProxyRotationErrorDegrees = 0.0f;
 
+        // Combat Race HUD fields
+        float m_hudWayfinderAngleRad = 0.0f;
+        float m_hudDistanceToNextGateMeters = 0.0f;
+        float m_hudSpeedMps = 0.0f;
+        AZ::u32 m_hudRaceRank = 1;
+        AZ::u32 m_hudRaceLap = 1;
+        AZ::u32 m_hudRaceState = 0;
+        float m_hudCountdownTimer = 3.0f;
+
         // Tracks client's local input state:
         double m_clientSteering = 0.0;
         double m_clientThrottle = 0.0;

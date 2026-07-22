@@ -122,7 +122,7 @@ namespace LDMChronoVehicle
         }
 
         // Sort leaderboard positions based on progress score
-        AZStd::sort(m_competitors.begin(), m_competitors.end(), [](const CompetitorRaceStatus& a, const CompetitorRaceStatus& b) {
+        std::sort(m_competitors.begin(), m_competitors.end(), [](const CompetitorRaceStatus& a, const CompetitorRaceStatus& b) {
             return a.m_progressScore > b.m_progressScore;
         });
 

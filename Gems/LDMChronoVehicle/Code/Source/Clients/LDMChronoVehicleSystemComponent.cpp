@@ -15,8 +15,12 @@
 #include <Simulation/ActiveVehicleRegistry.h>
 #include <Simulation/ChassisPresentationConfig.h>
 #include <Simulation/FixedStepClock.h>
+#include <Simulation/NpcVehicleAI.h>
+#include <Simulation/RaceManager.h>
 #include <Simulation/TerrainFixtureConfig.h>
+#include <Simulation/VehicleConditionSystem.h>
 #include <Simulation/VehicleFixture.h>
+#include <Simulation/WeaponSystem.h>
 
 #if defined(IMGUI_ENABLED)
 #include <imgui/imgui.h>
@@ -323,7 +327,9 @@ namespace LDMChronoVehicle
         };
 
         static constexpr VehicleId PlayerVehicleId = 1;
-        static constexpr VehicleId EnemyVehicleId = 2;
+        static constexpr VehicleId NpcVehicle1Id = 2;
+        static constexpr VehicleId NpcVehicle2Id = 3;
+        static constexpr VehicleId NpcVehicle3Id = 4;
 
         explicit ChronoState(Role role)
             : m_clock(FixedStepSeconds, MaxCatchUpSteps)
@@ -347,34 +353,57 @@ namespace LDMChronoVehicle
                 return;
             }
 
-            const VehicleReservationResult playerReservation =
-                m_activeVehicles.Reserve(PlayerVehicleId);
-            const VehicleReservationResult enemyReservation =
-                m_activeVehicles.Reserve(EnemyVehicleId);
-            AZ_Assert(playerReservation == VehicleReservationResult::Reserved &&
-                enemyReservation == VehicleReservationResult::Reserved,
-                "Reserving the T0 player/enemy fixtures failed (player=%d, enemy=%d).",
-                static_cast<int>(playerReservation), static_cast<int>(enemyReservation));
+            AZ_Assert(m_activeVehicles.Reserve(PlayerVehicleId) == VehicleReservationResult::Reserved, "Reserve Player failed");
+            AZ_Assert(m_activeVehicles.Reserve(NpcVehicle1Id) == VehicleReservationResult::Reserved, "Reserve NPC 1 failed");
+            AZ_Assert(m_activeVehicles.Reserve(NpcVehicle2Id) == VehicleReservationResult::Reserved, "Reserve NPC 2 failed");
+            AZ_Assert(m_activeVehicles.Reserve(NpcVehicle3Id) == VehicleReservationResult::Reserved, "Reserve NPC 3 failed");
 
             m_terrainFixture = std::make_unique<TerrainFixture>(m_system);
 
+            // 5-Lane Staggered Grid Setup
+            // Player (Lane 3 - Center)
             VehicleFixtureConfig playerConfig;
-            playerConfig.m_spawnY = -2.0;
-            playerConfig.m_targetThrottle = 0.35;
+            playerConfig.m_spawnX = 0.0;
+            playerConfig.m_spawnY = 0.0;
+            playerConfig.m_targetThrottle = 0.0;
             m_vehicles.push_back(VehicleEntry{
                 PlayerVehicleId,
                 std::make_unique<VehicleFixture>(m_system, m_terrainFixture->GetTerrain(),
                     FixedStepSeconds, playerConfig) });
 
-            VehicleFixtureConfig enemyConfig;
-            enemyConfig.m_spawnX = 12.0;
-            enemyConfig.m_spawnY = 2.0;
-            enemyConfig.m_targetThrottle = 0.30;
-            enemyConfig.m_steering = -0.01;
+            // NPC 1 - "Gorka" (Lane 1)
+            VehicleFixtureConfig npc1Config;
+            npc1Config.m_spawnX = -10.0;
+            npc1Config.m_spawnY = -6.0;
             m_vehicles.push_back(VehicleEntry{
-                EnemyVehicleId,
+                NpcVehicle1Id,
                 std::make_unique<VehicleFixture>(m_system, m_terrainFixture->GetTerrain(),
-                    FixedStepSeconds, enemyConfig) });
+                    FixedStepSeconds, npc1Config) });
+
+            // NPC 2 - "Morka" (Lane 2)
+            VehicleFixtureConfig npc2Config;
+            npc2Config.m_spawnX = -10.0;
+            npc2Config.m_spawnY = 6.0;
+            m_vehicles.push_back(VehicleEntry{
+                NpcVehicle2Id,
+                std::make_unique<VehicleFixture>(m_system, m_terrainFixture->GetTerrain(),
+                    FixedStepSeconds, npc2Config) });
+
+            // NPC 3 - "Waaagh" (Lane 4)
+            VehicleFixtureConfig npc3Config;
+            npc3Config.m_spawnX = -20.0;
+            npc3Config.m_spawnY = -12.0;
+            m_vehicles.push_back(VehicleEntry{
+                NpcVehicle3Id,
+                std::make_unique<VehicleFixture>(m_system, m_terrainFixture->GetTerrain(),
+                    FixedStepSeconds, npc3Config) });
+
+            // Register all 4 competitors in RaceManager
+            m_raceManager.RegisterCompetitor(PlayerVehicleId, "Player", true);
+            m_raceManager.RegisterCompetitor(NpcVehicle1Id, "Gorka", false);
+            m_raceManager.RegisterCompetitor(NpcVehicle2Id, "Morka", false);
+            m_raceManager.RegisterCompetitor(NpcVehicle3Id, "Waaagh", false);
+
             m_snapshotPublisher = std::make_unique<PoseSnapshotPublisher>();
 
             m_telemetry.m_activeVehicleCount =
@@ -387,6 +416,10 @@ namespace LDMChronoVehicle
         std::shared_ptr<chrono::ChBody> m_probeBody;
         std::unique_ptr<TerrainFixture> m_terrainFixture;
         AZStd::vector<VehicleEntry> m_vehicles;
+        RaceManager m_raceManager;
+        WeaponSystem m_weaponSystem;
+        NpcVehicleAI m_npcAiDrivers[3];
+        size_t m_npcWaypointIndices[3] = { 0, 0, 0 };
         std::unique_ptr<PoseSnapshotPublisher> m_snapshotPublisher;
         FixedStepClock m_clock;
         ActiveVehicleRegistry m_activeVehicles;
@@ -631,6 +664,35 @@ namespace LDMChronoVehicle
         for (AZ::u32 step = 0; step < plan.m_stepCount; ++step)
         {
             const double simulationTime = m_chronoState->m_system.GetChTime();
+
+            // 1. NPC AI Driver Decisions (Pure Pursuit steering + Target Firing)
+            if (m_chronoState->m_vehicles.size() >= 4)
+            {
+                AZ::Transform playerPose = m_chronoState->m_vehicles[0].m_fixture->GetChassisPose();
+                bool playerAlive = m_chronoState->m_vehicles[0].m_fixture->GetCondition() > 0.0f;
+
+                for (size_t i = 1; i < m_chronoState->m_vehicles.size(); ++i)
+                {
+                    ChronoState::VehicleEntry& npc = m_chronoState->m_vehicles[i];
+                    size_t npcIndex = i - 1;
+                    AiDriverOutputs aiOutput = m_chronoState->m_npcAiDrivers[npcIndex].UpdateAiDriver(
+                        npc.m_fixture->GetChassisPose(),
+                        npc.m_fixture->GetForwardSpeedMetersPerSecond(),
+                        m_chronoState->m_raceManager.GetTrackWaypoints(),
+                        m_chronoState->m_npcWaypointIndices[npcIndex],
+                        playerPose, playerAlive, simulationTime);
+
+                    LiveVehicleInputs npcInputs;
+                    npcInputs.m_steering = aiOutput.m_steering;
+                    npcInputs.m_throttle = aiOutput.m_throttle;
+                    npcInputs.m_braking = aiOutput.m_braking;
+                    npcInputs.m_fireTriggers[0] = aiOutput.m_fireRifles;
+                    npcInputs.m_fireTriggers[1] = aiOutput.m_fireRifles;
+                    npc.m_fixture->SetLiveInputs(npcInputs);
+                }
+            }
+
+            // 2. Synchronize and Advance Chrono physics
             if (m_chronoState->m_terrainFixture)
             {
                 m_chronoState->m_terrainFixture->Synchronize(simulationTime);
@@ -648,6 +710,32 @@ namespace LDMChronoVehicle
                 vehicle.m_fixture->Advance();
             }
             m_chronoState->m_system.DoStepDynamics(plan.m_fixedStepSeconds);
+
+            // 3. RaceManager Leaderboard & Checkpoint Update
+            AZStd::vector<std::pair<AZ::u64, AZ::Transform>> vehiclePoses;
+            AZStd::vector<std::pair<AZ::u64, float>> vehicleHealths;
+            for (const auto& v : m_chronoState->m_vehicles)
+            {
+                vehiclePoses.push_back({ v.m_vehicleId, v.m_fixture->GetChassisPose() });
+                vehicleHealths.push_back({ v.m_vehicleId, v.m_fixture->GetCondition() });
+            }
+            m_chronoState->m_raceManager.UpdateRace(static_cast<float>(plan.m_fixedStepSeconds), vehiclePoses, vehicleHealths);
+
+            // 4. Cockpit Wayfinder HUD calculation
+            CompetitorRaceStatus playerStatus = m_chronoState->m_raceManager.GetPlayerStatus();
+            const AZStd::vector<AZ::Vector3>& waypoints = m_chronoState->m_raceManager.GetTrackWaypoints();
+            if (!waypoints.empty())
+            {
+                AZ::Vector3 targetGate = waypoints[playerStatus.m_currentWaypointIndex % waypoints.size()];
+                AZ::Transform playerPose = m_chronoState->m_vehicles[0].m_fixture->GetChassisPose();
+                AZ::Vector3 localTargetDir = playerPose.GetInverse().TransformVector(targetGate - playerPose.GetTranslation());
+                m_hudWayfinderAngleRad = std::atan2(localTargetDir.GetY(), localTargetDir.GetX());
+                m_hudDistanceToNextGateMeters = (targetGate - playerPose.GetTranslation()).GetLength();
+            }
+            m_hudRaceRank = playerStatus.m_rank;
+            m_hudRaceLap = playerStatus.m_lap;
+            m_hudRaceState = static_cast<AZ::u32>(m_chronoState->m_raceManager.GetRaceState());
+            m_hudCountdownTimer = m_chronoState->m_raceManager.GetCountdownRemainingSeconds();
         }
         const auto stepFinishedAt = std::chrono::steady_clock::now();
 
@@ -670,6 +758,7 @@ namespace LDMChronoVehicle
             telemetry.m_vehiclePositionZ = static_cast<double>(position.GetZ());
             telemetry.m_vehicleSpeedMetersPerSecond =
                 player.m_fixture->GetForwardSpeedMetersPerSecond();
+            m_hudSpeedMps = static_cast<float>(telemetry.m_vehicleSpeedMetersPerSecond);
 
             // Transform trace for T0-PHYS-002 evidence: one line per
             // simulated second in the server log.

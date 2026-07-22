@@ -1,0 +1,179 @@
+{
+  "schema_version": "1.0",
+  "tranche_id": "T0",
+  "source_contract": "test_goals/t0_integration_spike.json",
+  "evaluated_utc": "2026-07-15T08:27:33.557791+00:00",
+  "build": {
+    "git_commit": "08075763db3ad7a94e41eb637c14dd4a18f5a95f",
+    "working_tree_clean": false,
+    "configuration": "profile",
+    "platform": "Windows"
+  },
+  "gate_rule": "all_blocker_and_critical_pass",
+  "gate_status": "blocked",
+  "decision": "do_not_advance_to_t1",
+  "summary": "Two-vehicle authoritative simulation, client mesh presentation, runtime cockpit camera, snapshot transport, terrain alignment, registry capacity, and timing telemetry pass their automated assertions. T0 remains blocked on clean-build evidence and required visual/collision captures.",
+  "goals": [
+    {
+      "id": "T0-BUILD-001",
+      "status": "blocked",
+      "assertions": [
+        {
+          "metric": "clean_client_build_exit_code",
+          "operator": "==",
+          "target": 0,
+          "measured": null,
+          "pass": false,
+          "evidence": "A clean client rebuild was not run by this evaluator."
+        },
+        {
+          "metric": "clean_server_build_exit_code",
+          "operator": "==",
+          "target": 0,
+          "measured": null,
+          "pass": false,
+          "evidence": "A clean server rebuild was not run by this evaluator."
+        },
+        {
+          "metric": "chrono_link_smoke_test",
+          "operator": "==",
+          "target": "pass",
+          "measured": "pass",
+          "pass": true,
+          "evidence": "user/log/Server.log; user/log/Game.log"
+        }
+      ],
+      "missing_evidence": [
+        "fresh clean dependency/bootstrap and launcher build logs"
+      ]
+    },
+    {
+      "id": "T0-PHYS-002",
+      "status": "blocked",
+      "assertions": [
+        {
+          "metric": "terrain_origin_error_m",
+          "operator": "<=",
+          "target": 0.02,
+          "measured": 0.0,
+          "pass": true,
+          "evidence": "T0 client terrain presentation trace"
+        },
+        {
+          "metric": "render_proxy_position_error_m",
+          "operator": "<=",
+          "target": 0.05,
+          "measured": 0.0,
+          "pass": true,
+          "evidence": "T0 proxy trace from mesh-backed client entities"
+        },
+        {
+          "metric": "orientation_error_deg",
+          "operator": "<=",
+          "target": 1.0,
+          "measured": 0.039565,
+          "pass": true,
+          "evidence": "T0 proxy trace from player/enemy entities"
+        }
+      ],
+      "observations": {
+        "terrain_surface_height_error_m": 0.0,
+        "received_snapshots": 784,
+        "rejected_snapshots": 0,
+        "runtime_vehicle_count": 2,
+        "player_and_enemy_observed": true
+      },
+      "missing_evidence": [
+        "captured non-null-RHI driving video"
+      ]
+    },
+    {
+      "id": "T0-CAM-003",
+      "status": "blocked",
+      "assertions": [
+        {
+          "metric": "camera_nan_or_invalid_frames",
+          "operator": "==",
+          "target": 0,
+          "measured": 0,
+          "pass": true,
+          "evidence": "T0 camera trace"
+        },
+        {
+          "metric": "player_external_driving_camera_actions",
+          "operator": "==",
+          "target": 0,
+          "measured": 0,
+          "pass": true,
+          "evidence": "T0 input inventory; template FlyCameraInputComponent removed"
+        },
+        {
+          "metric": "camera_remains_attached_to_cockpit",
+          "operator": "==",
+          "target": true,
+          "measured": true,
+          "pass": true,
+          "evidence": "active CameraComponent trace and attachment telemetry"
+        }
+      ],
+      "observations": {
+        "max_attachment_error_m": 5.5e-05,
+        "runtime_camera_component_active": true
+      },
+      "missing_evidence": [
+        "collision-input camera stability run",
+        "captured non-null-RHI first-person video"
+      ]
+    },
+    {
+      "id": "T0-PERF-004",
+      "status": "pass",
+      "assertions": [
+        {
+          "metric": "peak_active_vehicle_count",
+          "operator": "==",
+          "target": 30,
+          "measured": 30,
+          "pass": true,
+          "evidence": "ActiveVehicleRegistryTests.RejectsThirtyFirstUniqueVehicle"
+        },
+        {
+          "metric": "thirty_first_spawn_result",
+          "operator": "in_range",
+          "target": [
+            "rejected",
+            "queued"
+          ],
+          "measured": "rejected",
+          "pass": true,
+          "evidence": "ActiveVehicleRegistryTests.RejectsThirtyFirstUniqueVehicle"
+        },
+        {
+          "metric": "simulation_timing_metrics_present",
+          "operator": "==",
+          "target": true,
+          "measured": true,
+          "pass": true,
+          "evidence": "authoritative transform telemetry"
+        }
+      ],
+      "observations": {
+        "runtime_fixture_count": 2,
+        "capacity_implementation": 30,
+        "unit_test_exit_code": 0,
+        "max_step_wall_time_ms": 4.7774,
+        "max_dropped_simulation_seconds": 0.205,
+        "max_accumulator_seconds": 0.004706,
+        "total_authoritative_steps": 4894
+      },
+      "missing_evidence": []
+    }
+  ],
+  "unit_test_output": "Test project D:/Code/LDGM/build/windows\n    Start 138: Gem::LDMChronoVehicle.Tests.main::TEST_RUN\n1/1 Test #138: Gem::LDMChronoVehicle.Tests.main::TEST_RUN ...   Passed    0.19 sec\n\n100% tests passed, 0 tests failed out of 1\n\nLabel Time Summary:\nFRAMEWORK_googletest    =   0.19 sec*proc (1 test)\nSUITE_main              =   0.19 sec*proc (1 test)\n\nTotal Test time (real) =   0.25 sec",
+  "evidence": [
+    "user/log/Server.log",
+    "user/log/Game.log",
+    "build/windows/Testing/Temporary/LastTest.log",
+    "dependencies.lock.json"
+  ]
+}

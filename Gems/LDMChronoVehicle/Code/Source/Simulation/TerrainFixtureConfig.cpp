@@ -99,30 +99,18 @@ namespace LDMChronoVehicle
     {
         m_terrain = std::make_unique<chrono::vehicle::RigidTerrain>(&system);
 
-        double frictions[TerrainFixtureConfig::NumLanes] = {
-            TerrainFixtureConfig::HardRoadFriction,
-            TerrainFixtureConfig::BrokenRoadFriction,
-            TerrainFixtureConfig::GravelFriction,
-            TerrainFixtureConfig::FirmSandFriction,
-            TerrainFixtureConfig::DeepSandFriction
-        };
+        auto material = chrono_types::make_shared<chrono::ChContactMaterialNSC>();
+        material->SetFriction(0.85f);
+        material->SetRestitution(static_cast<float>(TerrainFixtureConfig::DefaultRestitution));
 
-        for (int i = 0; i < TerrainFixtureConfig::NumLanes; ++i)
-        {
-            auto material = chrono_types::make_shared<chrono::ChContactMaterialNSC>();
-            material->SetFriction(static_cast<float>(frictions[i]));
-            material->SetRestitution(static_cast<float>(TerrainFixtureConfig::DefaultRestitution));
-
-            double yCenter = -80.0 + i * TerrainFixtureConfig::LaneWidthMeters;
-
-            m_terrain->AddPatch(material,
-                chrono::ChCoordsysd(
-                    chrono::ChVector3d(0.0, yCenter, TerrainFixtureConfig::SurfaceZMeters), chrono::QUNIT),
-                TerrainFixtureConfig::LengthMeters,
-                TerrainFixtureConfig::LaneWidthMeters,
-                TerrainFixtureConfig::ThicknessMeters,
-                false, 1.0, /*visualization*/ false);
-        }
+        // Full 2500m x 2500m physical ground patch centered at (0, 0, 0)
+        m_terrain->AddPatch(material,
+            chrono::ChCoordsysd(
+                chrono::ChVector3d(0.0, 0.0, TerrainFixtureConfig::SurfaceZMeters), chrono::QUNIT),
+            TerrainFixtureConfig::LengthMeters,
+            TerrainFixtureConfig::WidthMeters,
+            TerrainFixtureConfig::ThicknessMeters,
+            false, 1.0, /*visualization*/ false);
 
         m_terrain->Initialize();
     }

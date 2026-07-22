@@ -18,7 +18,7 @@ namespace LDMChronoVehicle
 
         // Weapon fire direction is chassis forward (+X)
         const AZ::Vector3 forward = vehiclePose.GetBasisX().GetNormalized();
-        const AZ::Vector3 muzzleWorldPos = vehiclePose * mountOffset;
+        const AZ::Vector3 muzzleWorldPos = vehiclePose.TransformPoint(mountOffset);
 
         // 5.56 NATO initial velocity vector
         TracerProjectile projectile;
@@ -39,7 +39,7 @@ namespace LDMChronoVehicle
 
     void WeaponSystem::AdvanceProjectiles(float dtSeconds)
     {
-        constexpr AZ::Vector3 gravity(0.0f, 0.0f, -9.81f);
+        const AZ::Vector3 gravity(0.0f, 0.0f, -9.81f);
 
         for (auto it = m_projectiles.begin(); it != m_projectiles.end();)
         {
